@@ -1,0 +1,146 @@
+"""Build the docker-compose.yml for the streamer VM from the config entry."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from typing import Any
+
+import yaml
+
+from .const import (
+    CONF_AUDIO,
+    CONF_BITRATE,
+    CONF_FREEZE_AFTER,
+    CONF_HEIGHT,
+    CONF_HOME_AFTER,
+    CONF_HOST,
+    CONF_ID,
+    CONF_IMAGE,
+    CONF_INDEX,
+    CONF_LINKS,
+    CONF_NAME,
+    CONF_NO_RELOAD,
+    CONF_RASTER_THREADS,
+    CONF_REMEMBER_LOGIN,
+    CONF_START_URL,
+    CONF_STREAMERS,
+    CONF_TIMEZONE,
+    CONF_URL,
+    CONF_VIDEO_PATH,
+    CONF_WIDTH,
+    CONF_ZOOM,
+    DEFAULT_FREEZE_AFTER,
+    DEFAULT_HOME_AFTER,
+    DEFAULT_IMAGE,
+    DEFAULT_RASTER_THREADS,
+    HTTP_PORT_BASE,
+    SUNSHINE_PORT_BASE,
+    SUNSHINE_PORT_STEP,
+    VIDEO_MOONLIGHT,
+    VIDEO_WEBRTC,
+    WEBRTC_PORT_BASE,
+)
+
+
+def http_port(index: int) -> int:
+    """Port of the streamer's web page on the VM."""
+    return HTTP_PORT_BASE + index
+
+
+def webrtc_port(index: int) -> int:
+    """UDP/TCP port for WebRTC; the same inside and outside the container."""
+    return WEBRTC_PORT_BASE + index
+
+
+def sunshine_port(index: int) -> int:
+    """Sunshine base port (Moonlight host port; web UI is +1)."""
+    return SUNSHINE_PORT_BASE + SUNSHINE_PORT_STEP * index
+
+
+def sunshine_ports(base: int) -> list[str]:
+    """Port mappings Sunshine needs, relative to its base port (47989 → 47984-47990, 48010, 47998-48000/udp)."""
+    return [
+        f"{base - 5}-{base + 1}:{base - 5}-{base + 1}",
+        f"{base + 21}:{base + 21}",
+        f"{base + 9}-{base + 11}:{base + 9}-{base + 11}/udp",
+    ]
+
+
+def service_name(streamer: dict[str, Any]) -> str:
+    """Docker service name: the streamer id (already a slug)."""
+    return str(streamer[CONF_ID])
+
+
+def build_compose(data: dict[str, Any], options: dict[str, Any], webhook_url: str) -> dict[str, Any]:
+    """Return the compose file as a dict."""
+    links = options.get(CONF_LINKS, [])
+    common = {
+        "START_URL": options[CONF_START_URL],
+        "LINKS": json.dumps({link[CONF_NAME]: link[CONF_URL] for link in links}, ensure_ascii=False),
+        "KEIN_NEULADEN": ",".join(link[CONF_NAME] for link in links if link.get(CONF_NO_RELOAD)),
+        "ZUGANG_REITER": next((link[CONF_NAME] for link in links if link.get(CONF_REMEMBER_LOGIN)), ""),
+        "FPS": "30",
+        "FREEZE_AFTER_SECONDS": str(options.get(CONF_FREEZE_AFTER, DEFAULT_FREEZE_AFTER)),
+        "MOONLIGHT_STARTSEITE_S": str(options.get(CONF_HOME_AFTER, DEFAULT_HOME_AFTER)),
+        "CHROMIUM_FLAGS": f"--num-raster-threads={options.get(CONF_RASTER_THREADS, DEFAULT_RASTER_THREADS)}",
+        "HA_WEBHOOK": webhook_url,
+        "TZ": options.get(CONF_TIMEZONE) or "UTC",
+        "PUBLIC_IP": data[CONF_HOST],
+        "VIDEO_PC": "webrtc",
+        "AUDIO": "1" if options.get(CONF_AUDIO, True) else "0",
+        "X264_PRESET": "superfast",
+    }
+    services: dict[str, Any] = {}
+    volumes: dict[str, Any] = {}
+    for streamer in sorted(options.get(CONF_STREAMERS, []), key=lambda s: s[CONF_INDEX]):
+        index = streamer[CONF_INDEX]
+        name = service_name(streamer)
+        path = streamer[CONF_VIDEO_PATH]
+        env = dict(common)
+        env.update(
+            TV_NAME=name,
+            WIDTH=str(streamer[CONF_WIDTH]),
+            HEIGHT=str(streamer[CONF_HEIGHT]),
+            ZOOM=str(streamer[CONF_ZOOM]),
+            BITRATE=f"{streamer[CONF_BITRATE]}M",
+            VIDEO_TV="webrtc" if path == VIDEO_WEBRTC else "mse",
+            BROWSER_BILD="0" if path == VIDEO_MOONLIGHT else "1",
+            MOONLIGHT="1" if path == VIDEO_MOONLIGHT else "0",
+            WEBRTC_PORT=str(webrtc_port(index)) if path == VIDEO_WEBRTC else "0",
+            WEBRTC_LISTEN=str(webrtc_port(index)),
+            SUNSHINE_PORT=str(sunshine_port(index)),
+        )
+        ports = [f"{http_port(index)}:8090"]
+        if path == VIDEO_WEBRTC:
+            ports += [f"{webrtc_port(index)}:{webrtc_port(index)}/udp", f"{webrtc_port(index)}:{webrtc_port(index)}/tcp"]
+        if path == VIDEO_MOONLIGHT:
+            ports += sunshine_ports(sunshine_port(index))
+        volume = f"tv-{name}"
+        services[name] = {
+            "build": ".",
+            "image": options.get(CONF_IMAGE) or DEFAULT_IMAGE,
+            "container_name": f"tv-{name}",
+            "restart": "unless-stopped",
+            "init": True,
+            "shm_size": "1gb",
+            "ports": ports,
+            "environment": env,
+            "volumes": [f"{volume}:/data"],
+        }
+        volumes[volume] = None
+    return {"services": services, "volumes": volumes}
+
+
+def render_compose(data: dict[str, Any], options: dict[str, Any], webhook_url: str) -> str:
+    """Return the compose file as YAML text."""
+    body = yaml.safe_dump(build_compose(data, options, webhook_url), sort_keys=False, allow_unicode=True, width=200)
+    return (
+        "# Generated by the Home Assistant integration \"TV Streamer\" – do not edit, change the options in HA instead.\n"
+        + body.replace(": null\n", ":\n")
+    )
+
+
+def compose_version(text: str) -> str:
+    """Short hash the VM compares to decide whether to redeploy."""
+    return hashlib.sha256(text.encode()).hexdigest()[:16]

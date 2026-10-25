@@ -1,0 +1,206 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "TV Streamer VM",
+        "description": "The VM that runs the streamer containers (one per TV). After this step, add the streamers in the integration's options and run the VM setup command shown there once on the VM.",
+        "data": {
+          "host": "VM address",
+          "ha_url": "Home Assistant address as seen from the VM"
+        },
+        "data_description": {
+          "host": "IP address or host name of the VM, e.g. 192.168.1.42. TVs and Moonlight connect to this address.",
+          "ha_url": "Used for the start view, the status reports and to fetch the configuration. Use the local address, e.g. http://192.168.1.10:8123."
+        }
+      },
+      "reconfigure": {
+        "title": "Change VM address",
+        "data": {
+          "host": "VM address",
+          "ha_url": "Home Assistant address as seen from the VM"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This VM is already set up.",
+      "reconfigure_successful": "Saved. The VM fetches the new configuration within 5 minutes."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "TV Streamer",
+        "description": "Streamers: {streamers}\nExtra tabs: {links}\n\nChanges take effect after **Save**; the VM fetches them within 5 minutes.",
+        "menu_options": {
+          "add_streamer": "Add streamer",
+          "edit_streamer": "Edit streamer",
+          "remove_streamer": "Remove streamer",
+          "add_link": "Add extra tab",
+          "remove_link": "Remove extra tab",
+          "settings": "General settings",
+          "vm_setup": "VM setup",
+          "save": "Save"
+        }
+      },
+      "add_streamer": {
+        "title": "Add streamer",
+        "description": "The TV type fills in settings that are confirmed for it; you can change them in the next step.",
+        "data": {
+          "name": "Name",
+          "tv_type": "TV type"
+        }
+      },
+      "edit_streamer": {
+        "title": "Edit streamer",
+        "data": { "id": "Streamer" }
+      },
+      "remove_streamer": {
+        "title": "Remove streamer",
+        "description": "The container is removed on the next update of the VM. Its browser profile (logins) stays in the Docker volume.",
+        "data": { "id": "Streamer" }
+      },
+      "streamer": {
+        "title": "Streamer settings",
+        "data": {
+          "name": "Name",
+          "area": "Room",
+          "media_player": "TV (media player)",
+          "tv_type": "TV type",
+          "video_path": "Video path",
+          "width": "Width",
+          "height": "Height",
+          "zoom": "Zoom",
+          "bitrate": "Bit rate",
+          "lg_session_token": "LG developer mode session token"
+        },
+        "data_description": {
+          "video_path": "MSE: sharpest picture in the TV browser. WebRTC: lowest delay (not on webOS 4). Moonlight: the TV runs the Moonlight app, the VM runs Sunshine – fastest reaction.",
+          "width": "Picture size the browser draws. webOS 4 TVs: 1920×1080, webOS 5 and newer: 2560×1440. 4K is too much for software encoding.",
+          "zoom": "Page zoom. Page size in points = width ÷ zoom (2560 at 1.67 → 1533 points).",
+          "lg_session_token": "Only for LG TVs with Moonlight (developer mode). Paste the token or the whole renewal URL from the webOS Dev Manager. Home Assistant renews the session every day."
+        }
+      },
+      "add_link": {
+        "title": "Add extra tab",
+        "description": "Extra web pages the streamer keeps open in their own tab, e.g. a Loxone or router interface.",
+        "data": {
+          "name": "Name",
+          "url": "Address",
+          "remember_login": "Remember login",
+          "no_reload": "Never reload"
+        },
+        "data_description": {
+          "remember_login": "The streamer stores the login of this tab in its volume and fills it in again. Only one tab can have this.",
+          "no_reload": "For pages that log out on reload (e.g. Loxone)."
+        }
+      },
+      "remove_link": {
+        "title": "Remove extra tab",
+        "data": { "name": "Tab" }
+      },
+      "settings": {
+        "title": "General settings",
+        "data": {
+          "start_url": "Start view",
+          "freeze_after": "Rest after",
+          "home_after": "Back to start view after",
+          "raster_threads": "Raster threads",
+          "audio": "Audio",
+          "lg_renew_time": "Daily LG renewal at",
+          "image": "Docker image",
+          "timezone": "Time zone"
+        },
+        "data_description": {
+          "start_url": "Dashboard the streamers open, e.g. http://192.168.1.10:8123/tv-dashboard/home",
+          "freeze_after": "Seconds without viewers until the dashboard tab rests (empty page, saves CPU). 0 = never.",
+          "home_after": "After a Moonlight pause of this many seconds, the stream starts with the start view again (like Loxone after 5 minutes).",
+          "raster_threads": "Chromium raster threads (1–4). 4 makes pop-ups noticeably faster.",
+          "image": "Image name used by docker compose. With a Dockerfile in /opt/tv-streamer the image is built locally."
+        }
+      },
+      "vm_setup": {
+        "title": "VM setup",
+        "description": "Run this command once as root on the VM. It installs a timer that fetches the configuration from Home Assistant every 5 minutes and restarts the containers when it changed.\n\n```\n{command}\n```\n\nThe command contains the VM token – do not share it."
+      }
+    },
+    "error": {
+      "name_taken": "This name is already used.",
+      "lg_token_invalid": "LG did not accept this token. Copy it again from the webOS Dev Manager.",
+      "lg_token_not_lg": "The session token is only used for LG TVs.",
+      "invalid_url": "The address must start with http:// or https://."
+    },
+    "abort": {
+      "too_many_streamers": "At most 8 streamers per VM."
+    }
+  },
+  "selector": {
+    "tv_type": {
+      "options": {
+        "lg_webos4": "LG webOS 4 (e.g. UK7550) – 1080p",
+        "lg_webos5": "LG webOS 5 or newer (e.g. 86UN85) – 1440p",
+        "lg_other": "LG, other / untested",
+        "other": "Other TV or browser"
+      }
+    },
+    "video_path": {
+      "options": {
+        "mse": "MSE (TV browser, sharpest)",
+        "webrtc": "WebRTC (TV browser, lowest delay)",
+        "moonlight": "Moonlight / Sunshine (app on the TV)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "State",
+        "state": { "showing": "Showing", "resting": "Resting", "ready": "Ready" }
+      },
+      "viewers": { "name": "Viewers" },
+      "latency": { "name": "Latency" },
+      "frame_rate": { "name": "Frame rate" },
+      "data_rate": { "name": "Data rate" },
+      "tab": { "name": "Tab" },
+      "version": { "name": "Version" },
+      "lg_devmode_expires": { "name": "Developer mode expires" },
+      "lg_devmode_last_renewal": { "name": "Developer mode last renewal" }
+    },
+    "binary_sensor": {
+      "reachable": { "name": "Reachable" },
+      "moonlight_stream": { "name": "Moonlight stream" }
+    },
+    "button": {
+      "start_view": { "name": "Start view" },
+      "reload": { "name": "Reload" },
+      "back": { "name": "Back" },
+      "link": { "name": "Show {link}" },
+      "lg_devmode_renew": { "name": "Renew developer mode" }
+    }
+  },
+  "issues": {
+    "lg_renew_failed": {
+      "title": "LG developer mode of {name} not renewed",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "New session token for {name}",
+            "description": "LG did not renew the developer mode session. Without renewal, the TV removes Moonlight after the session ends.\n\nOpen the Developer Mode app on the TV or the webOS Dev Manager, copy the session token (or the renewal URL) and paste it here.",
+            "data": { "lg_session_token": "Session token or renewal URL" }
+          }
+        },
+        "error": {
+          "lg_token_invalid": "LG did not accept this token.",
+          "lg_unreachable": "developer.lge.com is not reachable. Try again later."
+        },
+        "abort": {
+          "entry_removed": "The streamer no longer exists."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "lg_renew_failed": {
+      "message": "LG developer mode of {name} could not be renewed. See Settings → Repairs."
+    }
+  }
+}

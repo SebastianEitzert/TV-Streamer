@@ -1,0 +1,206 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "TV-Streamer-VM",
+        "description": "Die VM, auf der die Streamer-Container laufen (einer je Fernseher). Danach in den Optionen der Integration die Streamer anlegen und den dort angezeigten Einrichtungsbefehl einmal auf der VM ausführen.",
+        "data": {
+          "host": "Adresse der VM",
+          "ha_url": "Adresse von Home Assistant aus Sicht der VM"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname der VM, z. B. 192.168.1.42. Fernseher und Moonlight verbinden sich mit dieser Adresse.",
+          "ha_url": "Für Startansicht, Statusmeldungen und den Konfigurationsabruf. Die lokale Adresse verwenden, z. B. http://192.168.1.10:8123."
+        }
+      },
+      "reconfigure": {
+        "title": "VM-Adresse ändern",
+        "data": {
+          "host": "Adresse der VM",
+          "ha_url": "Adresse von Home Assistant aus Sicht der VM"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Diese VM ist bereits eingerichtet.",
+      "reconfigure_successful": "Gespeichert. Die VM holt die neue Konfiguration innerhalb von 5 Minuten."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "TV-Streamer",
+        "description": "Streamer: {streamers}\nZusätzliche Reiter: {links}\n\nÄnderungen gelten nach **Speichern**; die VM holt sie innerhalb von 5 Minuten.",
+        "menu_options": {
+          "add_streamer": "Streamer hinzufügen",
+          "edit_streamer": "Streamer bearbeiten",
+          "remove_streamer": "Streamer entfernen",
+          "add_link": "Reiter hinzufügen",
+          "remove_link": "Reiter entfernen",
+          "settings": "Allgemeine Einstellungen",
+          "vm_setup": "VM-Einrichtung",
+          "save": "Speichern"
+        }
+      },
+      "add_streamer": {
+        "title": "Streamer hinzufügen",
+        "description": "Der Fernsehertyp setzt die für ihn bestätigten Einstellungen; im nächsten Schritt lassen sie sich ändern.",
+        "data": {
+          "name": "Name",
+          "tv_type": "Fernsehertyp"
+        }
+      },
+      "edit_streamer": {
+        "title": "Streamer bearbeiten",
+        "data": { "id": "Streamer" }
+      },
+      "remove_streamer": {
+        "title": "Streamer entfernen",
+        "description": "Der Container wird beim nächsten Update der VM entfernt. Das Browser-Profil (Anmeldungen) bleibt im Docker-Volume.",
+        "data": { "id": "Streamer" }
+      },
+      "streamer": {
+        "title": "Streamer-Einstellungen",
+        "data": {
+          "name": "Name",
+          "area": "Raum",
+          "media_player": "Fernseher (Media Player)",
+          "tv_type": "Fernsehertyp",
+          "video_path": "Bildweg",
+          "width": "Breite",
+          "height": "Höhe",
+          "zoom": "Zoom",
+          "bitrate": "Bitrate",
+          "lg_session_token": "LG-Developer-Mode-Session-Token"
+        },
+        "data_description": {
+          "video_path": "MSE: schärfstes Bild im Fernseher-Browser. WebRTC: geringste Verzögerung (nicht bei webOS 4). Moonlight: Der Fernseher nutzt die Moonlight-App, die VM Sunshine – schnellste Reaktion.",
+          "width": "Bildgröße, die der Browser zeichnet. webOS 4: 1920×1080, webOS 5 und neuer: 2560×1440. 4K ist für Software-Kodierung zu viel.",
+          "zoom": "Seitenzoom. Seitengröße in Punkten = Breite ÷ Zoom (2560 bei 1,67 → 1533 Punkte).",
+          "lg_session_token": "Nur für LG-Fernseher mit Moonlight (Developer-Modus). Token oder die ganze Verlängerungs-URL aus dem webOS Dev Manager einfügen. Home Assistant verlängert die Sitzung täglich."
+        }
+      },
+      "add_link": {
+        "title": "Reiter hinzufügen",
+        "description": "Zusätzliche Webseiten, die der Streamer in einem eigenen Reiter offen hält, z. B. Loxone oder die Router-Oberfläche.",
+        "data": {
+          "name": "Name",
+          "url": "Adresse",
+          "remember_login": "Anmeldung merken",
+          "no_reload": "Nie neu laden"
+        },
+        "data_description": {
+          "remember_login": "Der Streamer speichert die Anmeldung dieses Reiters in seinem Volume und füllt sie wieder aus. Nur ein Reiter kann das.",
+          "no_reload": "Für Seiten, die beim Neuladen abmelden (z. B. Loxone)."
+        }
+      },
+      "remove_link": {
+        "title": "Reiter entfernen",
+        "data": { "name": "Reiter" }
+      },
+      "settings": {
+        "title": "Allgemeine Einstellungen",
+        "data": {
+          "start_url": "Startansicht",
+          "freeze_after": "Ruhen nach",
+          "home_after": "Zurück zur Startansicht nach",
+          "raster_threads": "Zeichen-Threads",
+          "audio": "Ton",
+          "lg_renew_time": "Tägliche LG-Verlängerung um",
+          "image": "Docker-Image",
+          "timezone": "Zeitzone"
+        },
+        "data_description": {
+          "start_url": "Dashboard, das die Streamer öffnen, z. B. http://192.168.1.10:8123/tv-dashboard/home",
+          "freeze_after": "Sekunden ohne Zuschauer, bis der Dashboard-Reiter ruht (leere Seite, spart CPU). 0 = nie.",
+          "home_after": "Nach einer Moonlight-Pause von so vielen Sekunden beginnt der Stream wieder mit der Startansicht (wie Loxone nach 5 Minuten).",
+          "raster_threads": "Chromium-Zeichen-Threads (1–4). 4 macht Pop-ups deutlich schneller.",
+          "image": "Image-Name für docker compose. Liegt ein Dockerfile in /opt/tv-streamer, wird das Image lokal gebaut."
+        }
+      },
+      "vm_setup": {
+        "title": "VM-Einrichtung",
+        "description": "Diesen Befehl einmal als root auf der VM ausführen. Er richtet einen Timer ein, der die Konfiguration alle 5 Minuten von Home Assistant holt und die Container bei Änderungen neu startet.\n\n```\n{command}\n```\n\nDer Befehl enthält das VM-Token – nicht weitergeben."
+      }
+    },
+    "error": {
+      "name_taken": "Dieser Name ist schon vergeben.",
+      "lg_token_invalid": "LG hat dieses Token nicht angenommen. Bitte erneut aus dem webOS Dev Manager kopieren.",
+      "lg_token_not_lg": "Das Session-Token wird nur bei LG-Fernsehern verwendet.",
+      "invalid_url": "Die Adresse muss mit http:// oder https:// beginnen."
+    },
+    "abort": {
+      "too_many_streamers": "Höchstens 8 Streamer je VM."
+    }
+  },
+  "selector": {
+    "tv_type": {
+      "options": {
+        "lg_webos4": "LG webOS 4 (z. B. UK7550) – 1080p",
+        "lg_webos5": "LG webOS 5 oder neuer (z. B. 86UN85) – 1440p",
+        "lg_other": "LG, anderer / ungetestet",
+        "other": "Anderer Fernseher oder Browser"
+      }
+    },
+    "video_path": {
+      "options": {
+        "mse": "MSE (Fernseher-Browser, am schärfsten)",
+        "webrtc": "WebRTC (Fernseher-Browser, geringste Verzögerung)",
+        "moonlight": "Moonlight / Sunshine (App auf dem Fernseher)"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Zustand",
+        "state": { "showing": "Zeigt", "resting": "Ruht", "ready": "Bereit" }
+      },
+      "viewers": { "name": "Zuschauer" },
+      "latency": { "name": "Verzögerung" },
+      "frame_rate": { "name": "Bildrate" },
+      "data_rate": { "name": "Datenrate" },
+      "tab": { "name": "Reiter" },
+      "version": { "name": "Fassung" },
+      "lg_devmode_expires": { "name": "Developer-Modus endet" },
+      "lg_devmode_last_renewal": { "name": "Developer-Modus zuletzt verlängert" }
+    },
+    "binary_sensor": {
+      "reachable": { "name": "Erreichbar" },
+      "moonlight_stream": { "name": "Moonlight-Stream" }
+    },
+    "button": {
+      "start_view": { "name": "Startansicht" },
+      "reload": { "name": "Neu laden" },
+      "back": { "name": "Zurück" },
+      "link": { "name": "{link} zeigen" },
+      "lg_devmode_renew": { "name": "Developer-Modus verlängern" }
+    }
+  },
+  "issues": {
+    "lg_renew_failed": {
+      "title": "LG-Developer-Modus von {name} nicht verlängert",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Neues Session-Token für {name}",
+            "description": "LG hat die Developer-Mode-Sitzung nicht verlängert. Ohne Verlängerung entfernt der Fernseher Moonlight, wenn die Sitzung abläuft.\n\nDie Developer-Mode-App am Fernseher oder den webOS Dev Manager öffnen, das Session-Token (oder die Verlängerungs-URL) kopieren und hier einfügen.",
+            "data": { "lg_session_token": "Session-Token oder Verlängerungs-URL" }
+          }
+        },
+        "error": {
+          "lg_token_invalid": "LG hat dieses Token nicht angenommen.",
+          "lg_unreachable": "developer.lge.com ist nicht erreichbar. Später erneut versuchen."
+        },
+        "abort": {
+          "entry_removed": "Den Streamer gibt es nicht mehr."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "lg_renew_failed": {
+      "message": "Der LG-Developer-Modus von {name} konnte nicht verlängert werden. Siehe Einstellungen → Reparaturen."
+    }
+  }
+}
