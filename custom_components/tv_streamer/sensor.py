@@ -16,12 +16,16 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import EntityCategory, UnitOfDataRate, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import TvStreamerConfigEntry
-from .const import CONF_MEDIA_PLAYER, CONF_VIDEO_PATH
+from .const import CONF_ID, CONF_MEDIA_PLAYER, CONF_VIDEO_PATH, DOMAIN, VIDEO_MOONLIGHT
 from .coordinator import StreamerCoordinator
 from .entity import TvStreamerEntity
+
+# Measured by the receiving page in the TV browser – MSE and WebRTC only. With Moonlight, Sunshine encodes and reports nothing.
+BROWSER_ONLY = {"latency", "frame_rate", "data_rate"}
 
 STATE_SHOWING = "showing"
 STATE_RESTING = "resting"
@@ -97,8 +101,17 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: TvStreamerConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     entities: list[SensorEntity] = []
+    registry = er.async_get(hass)
     for coordinator in entry.runtime_data.coordinators.values():
-        entities += [StatusSensor(coordinator, d) for d in STATUS_SENSORS]
+        moonlight = coordinator.streamer.get(CONF_VIDEO_PATH) == VIDEO_MOONLIGHT
+        for d in STATUS_SENSORS:
+            if moonlight and d.key in BROWSER_ONLY:
+                # remove a sensor left over from MSE/WebRTC instead of keeping it empty forever
+                unique_id = f"{entry.entry_id}_{coordinator.streamer[CONF_ID]}_{d.key}"
+                if entity_id := registry.async_get_entity_id("sensor", DOMAIN, unique_id):
+                    registry.async_remove(entity_id)
+                continue
+            entities.append(StatusSensor(coordinator, d))
         if coordinator.lg_token:
             entities += [LgExpiresSensor(coordinator), LgLastRenewalSensor(coordinator)]
     async_add_entities(entities)

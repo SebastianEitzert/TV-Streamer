@@ -63,9 +63,18 @@ def test_token_from_input() -> None:
 async def test_setup_endpoints_webhook(hass: HomeAssistant, entry, aioclient_mock, hass_client_no_auth) -> None:
     _mock_streamers(aioclient_mock)
     aioclient_mock.get(LG_CHECK_URL, text=LG_OK)
+    from homeassistant.helpers import entity_registry as er
+
+    # a latency sensor left over from the time the bedroom streamer used WebRTC
+    reg = er.async_get(hass)
+    old = reg.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_bedroom_latency", config_entry=entry).entity_id
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
+    # Moonlight (bedroom): no browser-only measurements; WebRTC (living room): they exist
+    assert reg.async_get(old) is None
+    assert hass.states.get("sensor.tv_streamer_bedroom_frame_rate") is None
+    assert hass.states.get("sensor.tv_streamer_living_room_latency") is not None
     assert hass.states.get("sensor.tv_streamer_bedroom_state").state == "resting"
     assert hass.states.get("binary_sensor.tv_streamer_bedroom_reachable").state == "on"
     assert hass.states.get("sensor.tv_streamer_bedroom_developer_mode_expires").state not in ("unknown", "unavailable")
@@ -94,13 +103,14 @@ async def test_setup_endpoints_webhook(hass: HomeAssistant, entry, aioclient_moc
 
     resp = await client.post(
         "/api/webhook/hook123",
-        json={"name": "bedroom", "zuschauer": [{"ip": "1.2.3.4", "verzoegerung_ms": 42, "bilder_s": 30, "mbit_s": 5.5}]},
+        json={"name": "living_room", "zuschauer": [{"ip": "1.2.3.4", "verzoegerung_ms": 42, "bilder_s": 30, "mbit_s": 5.5}]},
     )
     assert resp.status == HTTPStatus.OK
+    await client.post("/api/webhook/hook123", json={"name": "bedroom", "zuschauer": [{"ip": "1.2.3.5"}]})
     await hass.async_block_till_done()
     assert hass.states.get("sensor.tv_streamer_bedroom_state").state == "showing"
-    assert hass.states.get("sensor.tv_streamer_bedroom_latency").state == "42"
-    assert hass.states.get("sensor.tv_streamer_bedroom_data_rate").state == "5.5"
+    assert hass.states.get("sensor.tv_streamer_living_room_latency").state == "42"
+    assert hass.states.get("sensor.tv_streamer_living_room_data_rate").state == "5.5"
 
     events = []
     hass.bus.async_listen("tv_streamer_key", lambda e: events.append(e.data))

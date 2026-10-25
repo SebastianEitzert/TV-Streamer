@@ -227,7 +227,7 @@ sensor after updates.
 
 ### 10. Check
 
-Each streamer is a device with sensors (state, viewers, latency, frame rate, data rate), *reachable* and *Moonlight stream*
+Each streamer is a device with sensors (state, viewers; with MSE/WebRTC also latency, frame rate, data rate), *reachable* and *Moonlight stream*
 binary sensors and buttons (start view, reload, back, show tab, renew developer mode). If LG rejects a renewal, a
 **repair** appears that asks for a new token.
 
