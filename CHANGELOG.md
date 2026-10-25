@@ -2,7 +2,7 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
-## 0.4.2 – unreleased
+## 0.4.2 – 2026-10-26
 - Moonlight streamers no longer get the sensors latency, frame rate and data rate (they are measured by the receiving
   page in the TV browser, MSE/WebRTC only); existing ones are removed.
 - Streamer settings: for LG TVs the TV must be the entity of the LG webOS integration. The Music Assistant speaker of the
