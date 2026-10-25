@@ -6,6 +6,8 @@ Changes against upstream:
 - **Play**, **Stop** and **Pause** are sent as F15 / F16 / F17 (Sunshine on Linux drops media keys) – TV Streamer fires
   the Home Assistant event `tv_streamer_key`.
 - The app is called **Moonlight TVS** in the TV's app list, so you can see the patched build is installed.
+- **Yellow** is always a right click while streaming (upstream only after a click in Moonlight's own UI – a stream
+  started from Home Assistant or with OK made it a menu key, which Sunshine on Linux drops).
 - The **pointer** comes back right after using the arrow keys, without shaking the Magic Remote.
   webOS reports hiding the pointer as a key (`CURSOR_HIDE`); while streaming this build switches the pointer straight
   back on, so the host's mouse pointer does not freeze after the arrow keys.

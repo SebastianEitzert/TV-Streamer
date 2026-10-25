@@ -13,7 +13,8 @@ small patches in [`patches/`](patches/) against the upstream release in [`UPSTRE
 | Play | ignored | sends **F15** (Sunshine on Linux drops media keys) | event `play` (use it in an automation, e.g. start the music) |
 | Pause | ignored | sends **F17** | event `pause` |
 | Stop | ignored | sends **F16** | event `stop` |
-| Arrow keys | pointer disappears until the remote is shaken | pointer comes back when the key is released | arrows go to the page (e.g. floor switch) |
+| Yellow | right click only if a click in Moonlight's own UI came first, else a menu key Sunshine drops | always a **right click** | floor plan: music on/off over a room, twice: room off |
+| Arrow keys | pointer disappears until the remote is shaken | pointer switched back on when webOS hides it | arrows go to the page (e.g. floor switch) |
 
 The app id stays `com.limelight.webos`, so it installs **over** the official app; host pairings and settings stay.
 In the TV's app list it is called **Moonlight TVS** – that is how you see the patched build is installed.
