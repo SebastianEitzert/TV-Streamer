@@ -26,7 +26,7 @@
       "reconfigure_successful": "Gespeichert. Die VM holt die neue Konfiguration innerhalb von 5 Minuten."
     },
     "error": {
-      "invalid_url": "Keine gültige Adresse. Beispiele: 192.168.1.160, loxone.local, https://example.com/app"
+      "invalid_url": "Keine gültige Adresse. Beispiele: 192.168.1.160, loxone.local"
     }
   },
   "options": {
@@ -159,7 +159,7 @@
       "name_taken": "Dieser Name ist schon vergeben.",
       "lg_token_invalid": "LG hat dieses Token nicht angenommen. Bitte erneut aus dem webOS Dev Manager kopieren.",
       "lg_token_not_lg": "Das Session-Token wird nur bei LG-Fernsehern verwendet.",
-      "invalid_url": "Keine gültige Adresse. Beispiele: 192.168.1.160, loxone.local, https://example.com/app"
+      "invalid_url": "Keine gültige Adresse. Beispiele: 192.168.1.160, loxone.local"
     },
     "abort": {
       "too_many_streamers": "Höchstens 8 Streamer je VM."
