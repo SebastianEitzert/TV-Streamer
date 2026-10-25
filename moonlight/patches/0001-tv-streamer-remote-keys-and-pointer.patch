@@ -32,7 +32,7 @@ index 4039940..ae4db89 100644
                  SDL_webOSCursorVisibility(SDL_FALSE);
              }
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
-index 652545b..47332cc 100644
+index 652545b..4de98fb 100644
 --- a/src/app/platform/webos/keyboard_webos.c
 +++ b/src/app/platform/webos/keyboard_webos.c
 @@ -16,6 +16,9 @@
@@ -45,7 +45,7 @@ index 652545b..47332cc 100644
  
  bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_KeyboardEvent *event, short *keyCode) {
      session_t *session = input->session;
-@@ -57,6 +60,36 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -57,6 +60,44 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
          case SDL_SCANCODE_WEBOS_RED:
              bus_pushevent(USER_OPEN_OVERLAY, NULL, NULL);
              return true;
@@ -71,6 +71,14 @@ index 652545b..47332cc 100644
 +        case SDL_SCANCODE_AUDIOSTOP:
 +            *keyCode = VK_F16;
 +            return false;
++        case SDL_SCANCODE_WEBOS_CURSOR_HIDE:
++            /* TV Streamer: webOS hides the Magic Remote pointer after the arrow keys and stops sending pointer
++             * motion until the remote is shaken – the host's pointer then seems frozen. While streaming, switch
++             * the pointer straight back on so the next movement of the remote moves the mouse again. */
++            SDL_webOSCursorVisibility(SDL_TRUE);
++            return true;
++        case SDL_SCANCODE_WEBOS_CURSOR_SHOW:
++            return true;
 +        case SDL_SCANCODE_PAUSE:
 +            /* Pause = F17. Sent here directly: the generic mapping later in stream_input_handle_key would turn
 +             * SDL_SCANCODE_PAUSE into VK_PAUSE again, which Sunshine on Linux does not know. */
