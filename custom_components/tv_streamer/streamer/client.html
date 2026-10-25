@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Streamer</title>
+<!-- KI generiert (Claude, 21.10.2026): Empfangsseite des TV-Streamers. Spielt das Bild des Browsers auf der VM
+     als Video ab (MSE, normaler Videoweg des Fernsehers) und schickt Zeiger, Klicks, Mausrad und Tasten zurück.
+     Bewusst ES5 – läuft auch in alten Fernseher-Browsern. Parameter: ?debug=1 (Messwerte), ?uhr=1 (Uhr für
+     Verzögerungs-Foto), ?lag=0.12 (Abstand zum neuesten Bild in s).
+     23.10.: Leiste und Hinweise wachsen mit der Fensterbreite (Schlafzimmer 960 Punkte → halb so groß wie am PC);
+     Farbtasten wie die Systeme: blau Home Assistant, grün Loxone, gelb neu laden, rot zurück.
+     23.10. (.12): Bildweg WebRTC (?video=webrtc) – Bild über go2rtc, kaum Puffer. ?video=mse erzwingt den Videostrom
+     über WebSocket. Ohne Angabe gilt die Voreinstellung des Streamers (Fernseher: VIDEO_TV, sonst VIDEO_PC). Scheitert
+     WebRTC (keine Verbindung, nach 12 s kein Bild), geht es von selbst mit MSE weiter. ?webrtc=fhd|hd: Bild 1920|1280 breit.
+     ?fps=60: Bildrate des MSE-Kodierers (zum Ausprobieren, ob der Fernseher dann weniger puffert).
+     ?nachlauf=1.0: so weit darf der MSE-Puffer über das Ziel wachsen, bevor gesprungen wird (Fernseher 1,0 s, PC 0,3 s).
+     ?rtc=tcp|udp|auto: Transportweg für WebRTC (Standard auto). Per UDP verlor das Wohnzimmer am 23.10. Tausende Pakete
+     (große Schlüsselbilder als Schwall) → seit .14 kodiert der Streamer ohne große Schlüsselbilder.
+     23.10. (.15): Schlüsselbild auf Abruf – die Seite fordert eines an, wenn der Dekoder nach Paketverlust nicht weiter
+     kann (PLI) oder das Bild 1,2 s steht.
+     23.10. (.17): Nach einem Rückfall auf MSE versucht die Seite WebRTC von selbst wieder (nach 1, 2, 4 … 16 min).
+     Verlauf der letzten Ereignisse (verlauf) und Verbindungszustände in den Messwerten – für die Fehlersuche ohne
+     Blick auf den Fernseher. MSE-Nachlauf am Fernseher wieder 1,0 s (0,4 s ließ das Schlafzimmer alle 8 s springen).
+     23.10. (.18): Vor einem Rückfall gehen die letzten WebRTC-Messwerte an die VM; dazu, wie viel überhaupt ankommt
+     (paar_kb, transport_kb – auch das, was der Fernseher danach verwirft).
+     23.10. (.19): Kommen Daten an, zählt der Fernseher aber nach 3 s noch kein einziges Paket (Schlafzimmer nach einem
+     Abbruch – hilft nur Aus/An), geht es sofort mit MSE weiter und WebRTC erst nach 60 min wieder. Mehr Fehlersuche
+     (empfang, chiffre, spur). Nach einem Update des Streamers lädt sich die Seite selbst neu (?neu=<Fassung>).
+     23.10. (.20): Steht das Bild 6 s (z. B. Streamer startet neu), verbindet die Seite per WebRTC neu – vorher fiel sie
+     dabei für 1 min auf MSE zurück.
+     23.10. (.21): Dekodiert der Fernseher WebRTC 20 s lang mit weniger als 20 Bildern/s (Wohnzimmer nach mehrfachem
+     Neuladen: 7 Bilder/s, auch nach Aus/An), geht es mit MSE weiter (Hardware-Decoder, flüssig) und WebRTC erst nach 60 min
+     wieder. Beim Verlassen/Neuladen der Seite wird die WebRTC-Verbindung ausdrücklich geschlossen.
+     23.10. (.22): Nach einem Bildstillstand (Streamer startet neu, Netz weg) erst 1 min MSE, dann WebRTC – nicht sofort neu:
+     Das Schlafzimmer verwarf zweimal alles, als die neue Verbindung Sekunden nach dem Stillstand kam (17:11, 19:22),
+     und klappte zweimal, als 1 min MSE dazwischen lag (18:35, 18:45). Ebenso nach dem Neuladen wegen einer neuen Fassung.
+     23.10. (.23): „Zu langsam“ nur, wenn der Fernseher selbst langsam dekodiert (über 40 ms je Bild) – nicht, wenn der
+     Streamer kurz weniger Bilder schickt (VM ausgelastet, 19:54 Schlafzimmer 15–19 Bilder/s bei 0 ms Dekodierzeit).
+     23.10. (.23): Anzeige-Wächter. Das Schlafzimmer dekodierte ab 20:01 weiter 23–30 Bilder/s, zeigte aber ein stehendes
+     Bild. Zeigt das Video-Element 5 s lang keine neuen Bilder (alle verworfen) oder zeichnet die Seite gar nicht mehr
+     (requestAnimationFrame steht), wird das Bild neu angehängt; hilft das nicht, 1 min MSE, dann WebRTC – beim zweiten
+     Mal in 30 min 60 min MSE. Neue Messwerte anzeige_s, element_verworfen_s, raf_s zeigen beim nächsten Mal, was steht.
+     23.10. (.24): Fernseher holen das WebRTC-Bild in 1920×1070 (Voreinstellung des Streamers, WEBRTC_TV) – so groß ist
+     ihre Browserfläche. Dekodiert der Fernseher zu langsam, stuft die Seite selbst ab: voll → 1920 → 1280, erst dann MSE
+     (Wohnzimmer 23.10.: volles Bild 7 Bilder/s, 1920 und 1280 je 30). „Zeichnet nicht“ (requestAnimationFrame 0) zählt nur,
+     wenn die Seite vorher flüssig gezeichnet hat – der webOS-5-Browser im Wohnzimmer zeichnet nur 2–3×/s, das Video läuft
+     trotzdem mit 30 Bildern/s.
+     23.10. (.25): requestAnimationFrame zählt gar nicht mehr für „Anzeige steht“ – das Schlafzimmer zeichnete mit dem
+     1920er-Bild 0×/s (Video läuft am Browser vorbei direkt auf den Bildschirm) und hätte nach jedem Einblenden der Leiste
+     fälschlich auf MSE gewechselt. raf_s bleibt als Messwert. Neu in den Messwerten: seite_fassung (Fassung dieser Seite).
+     Springt der Bildzähler des Video-Elements zurück (neu angehängt, Bildweg gewechselt), zählt diese Messung nicht –
+     vorher standen dann kurz negative Bilder/s in den Messwerten.
+     23.10. (.26): Zeigerbewegungen gehen nach Zeit (höchstens alle 25 ms) an die VM, nicht mehr im Takt von
+     requestAnimationFrame – mit 0 Zeichnungen/s (Schlafzimmer, 1920er-Bild) kamen sonst nur noch Klicks an, Überfahren und
+     Ziehen (Schieberegler) nicht.
+     24.10. (.27): Tasten ohne Schriftzeichen (Zurück, Pfeile, OK, Farbtasten …) stehen mit Tastencode im Verlauf – die
+     Zurück-Taste öffnete am Fernseher die untere Menüleiste; so sieht man, was überhaupt bei der Seite ankommt.
+     Getippte Zeichen werden nie mitgeschrieben (Passwörter).
+     24.10. (.27): Eingabefeld für Textfelder. Klickt man im Chromium in ein Textfeld, meldet der Streamer das; oben erscheint
+     ein eigenes Feld – ein Klick hinein öffnet die Tastatur des Fernsehers (bzw. des Handys). Getipptes geht als echte Eingabe
+     ins Feld im Chromium, OK/Enter schickt Enter, „Schließen“ blendet es aus. Am PC (ohne Touch) nicht nötig: dort tippt
+     die Tastatur direkt.
+     24.10. (.28): Das Eingabefeld nimmt den Fokus nur, wenn man gerade selbst in ein Textfeld geklickt hat. Setzt eine Seite
+     den Fokus von allein (z. B. die Anmeldung bei Loxone), erscheint es nur – die Tastatur des Fernsehers springt nicht auf,
+     und Pfeil- und Farbtasten gehen weiter an die VM. Farbtasten wirken auch beim Tippen im Eingabefeld.
+     24.10. (.30): Kurze Hinweise des Streamers unten im Bild (z. B. „Schon auf der Startseite“, „Loxone wird nicht neu
+     geladen“). Ton (?ton=1, Streamer mit AUDIO=1): WebRTC holt eine Tonspur dazu, MSE bekommt den Ton im Videostrom (AAC).
+     Das Video bleibt stumm, bis man zum ersten Mal klickt oder eine Taste drückt (Fernseher spielen Ton erst nach einer
+     Bedienung); Lautstärke am Fernseher. Messwert „ton“ zeigt, ob Tonpakete ankommen.
+     24.10. (.31): Versuch für das Schlafzimmer (?zeichnen=canvas): Dort dekodiert der Fernseher das WebRTC-Bild, zeigt es aber
+     nicht an (Anzeige steht, Zähler laufen). Mit ?zeichnen=canvas zeichnet die Seite jedes Bild selbst in ein Canvas (Takt per
+     Timer, nicht per requestAnimationFrame) und das Video-Element wird winzig – so kommt das Bild nicht über die Videoebene des
+     Fernsehers. Nur bei WebRTC; im MSE-Rückfall wie bisher. Messwerte canvas_s (gezeichnete Bilder/s) und canvas_ms.
+     Der Anzeige-Wächter (.23) gilt nur noch am Fernseher – Firefox am PC zählt WebRTC-Bilder als verworfen und fiel dadurch
+     grundlos auf MSE zurück.
+     24.10. (.32): ?tonsync=0 trennt bei WebRTC den Ton vom Bild – gekoppelt hält der Browser das Bild für den Ton zurück
+     (Jitterpuffer 100–300 ms statt ~22 ms). Voreinstellung bleibt gekoppelt: So wurde das Wohnzimmer am 24.10.
+     um 10:12 bestätigt (Ton, Bild „relativ schnell“); getrennt wird erst nach einem gemeinsamen Vergleich Standard.
+     24.10. (.32): ?webrtc=vp8 holt die VP8-Quelle des Streamers (1280 breit) – Versuch fürs Schlafzimmer, dessen Videoebene das
+     H.264-WebRTC-Bild nicht anzeigt (schwarz/stehend). VP8 dekodiert der Browser selbst. Beim Öffnen der Seite kommt der
+     HA-Reiter nach vorn (nicht nach dem Neuladen wegen einer neuen Fassung; ?reiter=bleiben lässt den Reiter, wie er ist).
+     24.10. (.32): Bildweg JPEG (?video=jpeg) – für das Schlafzimmer, dessen Videoebene WebRTC nicht anzeigt. Der Streamer
+     schickt Einzelbilder (nur geänderte), die Seite zeichnet sie selbst in zwei <img> im Wechsel (erst fertig dekodieren, dann
+     umschalten) – wie die Einblendung, die dort immer sichtbar war. Jedes angezeigte Bild meldet sie zurück; der Streamer
+     schickt erst dann weitere (höchstens ?vorrat=2 unterwegs) – kein Puffer, kein Rückstand. ?jpeg=hd|fhd|voll (1280 / 1920 /
+     volles Bild), ?q=5 (Qualität wie ffmpeg, kleiner = besser), ?jfps=30. Kommt in 10 s kein Bild, geht es mit MSE weiter.
+     Die Einblendung (?debug=1) wird nur noch 1× pro Sekunde neu geschrieben: Mit ihr zeigte das Schlafzimmer per VP8 nur
+     13 statt 28 Bilder/s (24.10. 09:57 / 10:06).
+     24.10. (.33): ?jzeichnen=bitmap – JPEG per createImageBitmap dekodieren (abseits der Seite, mehrere zugleich: ?parallel=2)
+     und ins Canvas zeichnen. Grund: Das Schlafzimmer brauchte mit <img> 130 ms je 1280er-Bild (7,5 Bilder/s, 10:47).
+     ?jpeg=sd: 960 breit. Seit .34 dekodiert auch der <img>-Weg mehrere Bilder zugleich (?parallel=N, Pool aus N+1 Bildern),
+     und der Bitmap-Weg zeichnet im Takt von requestAnimationFrame (Messwerte raf_gezeichnet_s / direkt_gezeichnet_s) – am
+     Schlafzimmer lief die Seite im Bitmap-Weg mit 0 Zeichnungen/s (11:11), ob das Canvas dann wirklich neu gezeichnet wird,
+     ist offen. Kommt 250 ms nach dem Dekodieren kein Zeichen-Takt, wird direkt gezeichnet.
+     24.10. (.34b): Das Canvas entsteht nur noch im Bitmap-Weg. Schon ein unsichtbares bildschirmgroßes Canvas ließ den
+     Schlafzimmer-Fernseher keine Bilder mehr zeichnen (Zeichen-Takt 0, <img>.decode() blieb hängen → „nach 10 s kein Bild“,
+     11:08 und 11:34); ohne Canvas lief der <img>-Weg mit 35–50 Zeichen-Takten/s. -->
+<style>
+  html { font-size: 20px; }   /* wird per Skript an die Fensterbreite angepasst (1920 Punkte = 20px, höchstens halbiert) */
+  html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+  video { position: fixed; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  #st { position: fixed; left: 50%; top: 50%; -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%);
+        padding: .8rem 1.3rem; border-radius: .8rem; background: rgba(18, 26, 46, .9); color: #eef2fb;
+        font: 500 1.2rem/1.35 Roboto, Arial, sans-serif; text-align: center; display: none; pointer-events: none; }
+  #dbg { position: fixed; left: .6rem; top: .6rem; padding: .4rem .6rem; border-radius: .5rem; background: rgba(0, 0, 0, .7);
+         color: #ffd59a; font: .9rem/1.4 monospace; white-space: pre; display: none; pointer-events: none; }
+  #uhr { position: fixed; right: .8rem; bottom: .8rem; padding: .3rem .7rem; border-radius: .5rem; background: #000; color: #5fe3b5;
+         font: 700 2.2rem/1.1 monospace; display: none; pointer-events: none; }
+  #bar { position: fixed; left: 50%; top: .5rem; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 5;
+         padding: .3rem .15rem; border-radius: .7rem; background: rgba(18, 26, 46, .92); white-space: nowrap;
+         opacity: 0; pointer-events: none; -webkit-transition: opacity .2s; transition: opacity .2s; }
+  #bar.on { opacity: 1; pointer-events: auto; }
+  #bar button { margin: 0 .15rem; padding: .5rem .9rem; border: 0; border-radius: .5rem; background: #26345a; color: #eef2fb;
+                font: 500 1rem/1 Roboto, Arial, sans-serif; cursor: pointer; }
+  #bar button i { display: inline-block; width: .6rem; height: .6rem; margin: 0 .45rem .05rem 0; border-radius: 50%; vertical-align: middle; }
+  #bar button:hover { background: #3b5491; }
+  #kb { position: fixed; left: 50%; top: 4.2rem; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 6;
+        width: 46rem; max-width: 92%; padding: .7rem .8rem .8rem; border-radius: .9rem; background: rgba(18, 26, 46, .96);
+        box-shadow: 0 .4rem 1.6rem rgba(0, 0, 0, .55); color: #eef2fb; font: 500 1rem/1.3 Roboto, Arial, sans-serif; display: none; }
+  #kb.on { display: block; }
+  #kbt { font-size: .85rem; color: #aab6d3; margin: 0 0 .45rem .2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #kbr { display: -webkit-box; display: -webkit-flex; display: flex; }
+  #kbi { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; min-width: 0; padding: .55rem .8rem; border: 2px solid #3b5491; border-radius: .55rem;
+         background: #0e1528; color: #fff; font: 500 1.3rem/1.2 Roboto, Arial, sans-serif; outline: none; }
+  #kbi:focus { border-color: #6f8fe0; }
+  #kb button { margin-left: .5rem; padding: .55rem 1rem; border: 0; border-radius: .55rem; background: #26345a; color: #eef2fb;
+               font: 500 1.05rem/1 Roboto, Arial, sans-serif; cursor: pointer; }
+  #kb button:hover { background: #3b5491; }
+  #kb #kbok { background: #2f86eb; }
+  #hw { position: fixed; left: 50%; bottom: 1.6rem; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 7;
+        max-width: 90%; padding: .6rem 1.2rem; border-radius: .8rem; background: rgba(18, 26, 46, .94); color: #eef2fb;
+        font: 500 1.1rem/1.3 Roboto, Arial, sans-serif; text-align: center; box-shadow: 0 .3rem 1.2rem rgba(0, 0, 0, .5);
+        opacity: 0; pointer-events: none; -webkit-transition: opacity .25s; transition: opacity .25s; }
+  #hw.on { opacity: 1; }
+  #cv { position: fixed; left: 0; top: 0; width: 100%; height: 100%; background: #000; display: none; }
+  body.cv #cv { display: block; }
+  body.cv video { width: 2px; height: 2px; opacity: .01; }
+  .jbild { position: fixed; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; visibility: hidden; display: none;
+        pointer-events: none; -webkit-user-drag: none; -webkit-user-select: none; user-select: none; }
+  body.jpeg .jbild { display: block; }   /* Klasse am body heißt anders als die der Bilder – sonst träfe .jbild auch den body */
+  body.jpeg video { display: none; }
+</style>
+</head>
+<body>
+<video id="v" muted autoplay playsinline></video>
+<canvas id="cv"></canvas>
+<img id="ja" class="jbild" alt="" draggable="false"><img id="jb" class="jbild" alt="" draggable="false">
+<div id="st"></div>
+<div id="dbg"></div>
+<div id="uhr"></div>
+<div id="bar"></div>
+<div id="hw"></div>
+<div id="kb"><div id="kbt"></div><div id="kbr"><input id="kbi" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="kbok">OK</button><button id="kbx">Schließen</button></div></div>
+<script>
+(function () {
+  var CFG = /*CFG*/{};
+  CFG.w = CFG.w || 1920; CFG.h = CFG.h || 1080;
+  var Q = {};
+  location.search.substring(1).split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) { Q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); } });
+  var v = document.getElementById('v'), st = document.getElementById('st'), dbg = document.getElementById('dbg'), uhr = document.getElementById('uhr');
+  var TV = /Web0S|webOS|NetCast|SmartTV|SMART-TV|Tizen/i.test(navigator.userAgent);
+  var WS = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+  /* Abstand zum neuesten Bild: der Fernseher braucht nach jedem Sprung etwa eine halbe Sekunde Vorlauf (Hardware-Decoder) */
+  var target = parseFloat(Q.lag || (TV ? '0.5' : '0.12'));
+  /* Wie weit der Puffer über das Ziel wachsen darf, bevor zum neuesten Bild gesprungen wird (höchstens alle 8 s).
+     Fernseher 1,0 s: mit 0,4 s (.15) sprang das Schlafzimmer alle 8 s und hing danach jedes Mal – sein Puffer pendelt
+     sich bei ~1 s ein. */
+  var slack = parseFloat(Q.nachlauf || (TV ? '1.0' : '0.3'));
+  var vws = null, iws = null, ms = null, sb = null, queue = [], lastData = 0, codec = '';
+  var S = { seeks: 0, gaps: 0, ranges: 0, rate: 1, rateChanges: 0, stalls: 0, bytes: 0, delay: null, lag: 0, fps: 0, kbit: 0, stallTimes: [] };
+  var lastSeek = 0;
+  var stamp = null;
+  var raf = window.requestAnimationFrame ? function (f) { window.requestAnimationFrame(f); } : function (f) { setTimeout(f, 16); };
+  /* Bildweg: WebRTC (kaum Puffer) oder MSE (Videostrom über WebSocket, der Fernseher puffert ~0,5 s) */
+  var MODE = String(Q.video || (TV ? CFG.video_tv : CFG.video_pc) || 'mse').toLowerCase();
+  var why = '';                                   /* Grund, falls WebRTC (oder JPEG) aufgegeben wurde */
+  if (MODE === 'jpeg' && !CFG.jpeg) { why = 'Streamer ohne JPEG'; }
+  MODE = MODE === 'webrtc' ? 'webrtc' : (MODE === 'jpeg' && CFG.jpeg ? 'jpeg' : 'mse');
+  if (MODE === 'webrtc' && !(CFG.webrtc && window.RTCPeerConnection)) { why = CFG.webrtc ? 'Browser ohne WebRTC' : 'Streamer ohne WebRTC'; MODE = 'mse'; }
+  var rtc = null, rtcT0 = 0, R = {}, quick = false;
+  var WANT_RTC = MODE === 'webrtc', rtcRetry = 0, rtcRetryTimer = null;   /* nach einem Rückfall WebRTC später erneut versuchen */
+  /* Neu geladen wegen einer neuen Fassung (Streamer gerade neu gestartet): erst MSE, WebRTC nach 1 min (siehe .22) */
+  var START_MSE = MODE === 'webrtc' && !!Q.neu;
+  if (START_MSE) { MODE = 'mse'; why = 'neue Fassung – WebRTC in 1 min'; }
+  var rafN = 0, lastFreeze = 0;                    /* Zeichen-Takt der Seite (requestAnimationFrame) – nur Messwert */
+  /* Größe des WebRTC-Bildes: '' voll, 'fhd' 1920, 'hd' 1280 breit – ?webrtc= oder Voreinstellung des Streamers für Fernseher */
+  var SIZES = ['', 'fhd', 'hd'];
+  var SRC = String(Q.webrtc !== undefined ? Q.webrtc : (TV ? (CFG.webrtc_tv || '') : '')).toLowerCase();
+  if (SIZES.indexOf(SRC) < 0 && SRC !== 'vp8') { SRC = ''; }   /* vp8: eigene VP8-Quelle des Streamers (.32) */
+  (function tick() { rafN += 1; raf(tick); })();
+  var rtcBlocked = '';                            /* Fernseher verwirft alle WebRTC-Pakete (bis Aus/An) → seltener versuchen */
+  /* Verlauf der letzten Ereignisse (Sekunden seit dem Laden der Seite) – geht mit den Messwerten an die VM */
+  var EV = [], T0 = Date.now();
+  function mark(t) { EV.push(((Date.now() - T0) / 1000).toFixed(1) + ' ' + t); if (EV.length > 16) { EV.shift(); } }
+  var RTCNET = String(Q.rtc || 'auto').toLowerCase();   /* tcp: mit go2rtc 1.9.14 kam lokal keine Antwort (23.10.) */
+  /* Ton (.30): nur mit ?ton=1 und wenn der Streamer Ton hat; stumm bis zur ersten Bedienung */
+  var TON = !!CFG.ton && Q.ton === '1';
+  function tonAn() { if (TON && v.muted) { try { v.muted = false; v.volume = 1; mark('ton an'); play(); } catch (x) {} } }
+  /* Zeichen-Versuch (.31, ?zeichnen=canvas): WebRTC-Bild selbst ins Canvas zeichnen, Video-Element winzig */
+  var ZC = String(Q.zeichnen || '').toLowerCase() === 'canvas';
+  var cv = document.getElementById('cv'), cx = null, cvOn = false, CV = { n: 0, ms: 0, n0: 0, ms0: 0, t0: Date.now(), s: null, avg: null, err: '' };
+  function cvDraw() {
+    var on = ZC && MODE === 'webrtc' && !!rtc;
+    if (on !== cvOn) { cvOn = on; if (on) { document.body.classList.add('cv'); } else { document.body.classList.remove('cv'); } mark(on ? 'canvas an' : 'canvas aus'); }
+    if (!on || v.readyState < 2 || !v.videoWidth) { return; }
+    try {
+      if (!cx) { cx = cv.getContext('2d', { alpha: false }) || cv.getContext('2d'); }
+      if (cv.width !== v.videoWidth || cv.height !== v.videoHeight) { cv.width = v.videoWidth; cv.height = v.videoHeight; }
+      var a = Date.now();
+      cx.drawImage(v, 0, 0, cv.width, cv.height);
+      CV.ms += Date.now() - a; CV.n += 1;
+    } catch (x) { if (!CV.err) { CV.err = String(x && x.message || x).substring(0, 80); mark('canvas fehler ' + CV.err); } }
+  }
+  if (ZC) { setInterval(cvDraw, 33); }
+
+  function status(text) { st.textContent = text || ''; st.style.display = text ? 'block' : 'none'; }
+  function two(n, l) { n = String(n); while (n.length < (l || 2)) { n = '0' + n; } return n; }
+  function clock() { var d = new Date(); return two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()) + '.' + two(d.getMilliseconds(), 3); }
+  function play() { var p = v.play(); if (p && p.then) { p.then(null, function () {}); } }
+
+  /* ---------- Bild: fragmentiertes MP4 per WebSocket → MediaSource ---------- */
+  function resetMedia() {
+    queue = []; sb = null; stamp = null;
+    try { if (ms && ms.readyState === 'open') { ms.endOfStream(); } } catch (e) {}
+    ms = null;
+    try { if (v.srcObject) { v.srcObject = null; } } catch (e) {}
+    v.removeAttribute('src');
+    try { v.load(); } catch (e) {}
+  }
+  function setupMedia(c) {
+    var type = 'video/mp4; codecs="' + c + '"';
+    codec = c;
+    if (!window.MediaSource || !MediaSource.isTypeSupported(type)) { status('Dieser Browser kann das Videoformat ' + c + ' nicht abspielen.'); return; }
+    ms = new MediaSource();
+    v.src = URL.createObjectURL(ms);
+    ms.addEventListener('sourceopen', function () {
+      try { sb = ms.addSourceBuffer(type); sb.addEventListener('updateend', pump); pump(); }
+      catch (e) { status('Video-Fehler: ' + e.message); }
+    });
+  }
+  function pump() {
+    if (!sb || sb.updating || !queue.length || !ms || ms.readyState !== 'open') { return; }
+    var total = 0, i, buf, off = 0;
+    for (i = 0; i < queue.length; i++) { total += queue[i].byteLength; }
+    buf = new Uint8Array(total);
+    for (i = 0; i < queue.length; i++) { buf.set(new Uint8Array(queue[i]), off); off += queue[i].byteLength; }
+    queue = [];
+    try { sb.appendBuffer(buf); } catch (e) { trim(true); }
+  }
+  function trim(force) {
+    if (!sb || sb.updating || !v.buffered.length) { return; }
+    var cur = v.currentTime, start = v.buffered.start(0);
+    if (force || cur - start > 15) { try { sb.remove(start, Math.max(start + 0.1, cur - 5)); } catch (e) {} }
+  }
+  function connectVideo() {
+    if (vws) { return; }
+    resetMedia();
+    closeRtc();
+    if (!lastData) { status('Verbinde mit der VM …'); }
+    var qp = [];
+    if (MODE === 'webrtc') { qp.push('mode=webrtc'); }
+    else if (MODE === 'jpeg') {
+      qp.push('mode=jpeg', 'jpeg=' + encodeURIComponent(JSIZE));
+      ['q', 'jfps'].forEach(function (k) { if (Q[k]) { qp.push(k + '=' + encodeURIComponent(Q[k])); } });
+      var vr = Q.vorrat || String(JPAR + 1);       /* ein Bild mehr unterwegs als gleichzeitig dekodiert */
+      if (vr) { qp.push('vorrat=' + encodeURIComponent(vr)); }
+    } else if (Q.fps) { qp.push('fps=' + encodeURIComponent(Q.fps)); }
+    if (TON && MODE !== 'jpeg') { qp.push('ton=1'); }
+    var ws = new WebSocket(WS + '/ws/video' + (qp.length ? '?' + qp.join('&') : ''));
+    vws = ws;
+    mark('ws ' + MODE);
+    ws.binaryType = 'arraybuffer';
+    ws.onmessage = function (ev) {
+      if (vws !== ws) { return; }                 /* Nachzügler einer alten Verbindung (z. B. nach dem Wechsel JPEG → MSE) */
+      if (typeof ev.data === 'string') {
+        var m = JSON.parse(ev.data);
+        if (m.type === 'init') {
+          if (newVersion(m.fassung)) { return; }
+          if (MODE === 'jpeg' && m.mode !== 'jpeg') { why = 'Streamer ohne JPEG'; MODE = 'mse'; jpegOff(); }
+          if (m.mode === 'webrtc') { startRtc(ws); } else if (m.mode === 'jpeg') { jpegOn(m); } else { setupMedia(m.codec); }
+        }
+        else if (m.type === 'jd') { J.delay = m.ms; }
+        else if (m.type === 'ts') { stamp = { m: m.m, a: Date.now() }; }
+        else if (m.type === 'answer') { mark('antwort'); answerRtc(m.sdp); }
+        else if (m.type === 'error') { mark('fehler ' + (m.text || '')); rtcFail(m.text || 'Aushandeln fehlgeschlagen'); }
+        return;
+      }
+      lastData = Date.now();
+      S.bytes += ev.data.byteLength;
+      if (MODE === 'jpeg') { jpegFrame(ev.data); return; }
+      queue.push(ev.data);
+      pump();
+    };
+    ws.onclose = function () {
+      if (vws === ws) { vws = null; }
+      mark('ws zu');
+      /* Streamer weg, während WebRTC lief (Neustart): wie bei einem Bildstillstand erst 1 min MSE (siehe .22) */
+      if (MODE === 'webrtc' && rtc && (R.good || 0) > 60) { rtcFail('Verbindung zum Streamer weg – 1 min MSE, dann WebRTC', 1); }
+      closeRtc();
+      if (!quick) { status('Verbindung zur VM unterbrochen – verbinde neu …'); }
+      setTimeout(connectVideo, quick ? 100 : 1500);
+      quick = false;
+    };
+  }
+  v.addEventListener('waiting', function () {
+    var now = Date.now();
+    S.stalls += 1;
+    if (MODE !== 'mse') { return; }
+    S.stallTimes = S.stallTimes.filter(function (t) { return now - t < 10000; });
+    S.stallTimes.push(now);
+    if (S.stallTimes.length >= 3 && target < 0.8) { target = Math.round((target + 0.08) * 100) / 100; S.stallTimes = []; }
+  });
+
+  /* Streamer hat eine neue Fassung (Update, Container neu gestartet) → Seite neu laden, damit sie dazu passt.
+     ?neu=<Fassung> verhindert eine Schleife, falls die Seite trotzdem die alte bliebe. */
+  function newVersion(f) {
+    if (!f || !CFG.fassung || f === CFG.fassung || Q.neu === f) { return false; }
+    mark('neue fassung ' + f);
+    var qs = location.search.substring(1).split('&').filter(function (kv) { return kv && kv.split('=')[0] !== 'neu'; });
+    qs.push('neu=' + encodeURIComponent(f));
+    try { location.replace(location.pathname + '?' + qs.join('&')); } catch (e) { location.reload(); }
+    return true;
+  }
+
+  /* ---------- Bild als JPEG-Einzelbilder (.32): zwei <img> im Wechsel, jedes angezeigte Bild wird zurückgemeldet ---------- */
+  var JSIZE = String(Q.jpeg !== undefined ? Q.jpeg : (CFG.jpeg_tv || 'hd')).toLowerCase();
+  /* .33: dekodieren per <img> (bild) oder createImageBitmap + Canvas (bitmap, mehrere Bilder zugleich) */
+  var JZ = String(Q.jzeichnen || CFG.jpeg_zeichnen || 'bild').toLowerCase() === 'bitmap' && !!window.createImageBitmap ? 'bitmap' : 'bild';
+  var JPAR = Math.max(1, Math.min(6, parseInt(Q.parallel || '2', 10) || 2));
+  var jc = null, jcx = null;                        /* Canvas nur im Bitmap-Weg anlegen (.34b) */
+  var J = { front: document.getElementById('ja'), next: null, init: 0, cfg: null,
+    shown: 0, skipped: 0, dec: 0, decN: 0, kb: 0, s: null, skipS: null, ms: null, kbS: null, n0: 0, k0: 0, d0: 0, dn0: 0, b0: 0,
+    t0: Date.now(), last: 0, w: 0, h: 0, err: '', delay: null, inflight: 0, drawn: 0,
+    pool: [document.getElementById('ja'), document.getElementById('jb')], pend: null, rafReq: false, pendTimer: null,
+    rafDraws: 0, direct: 0, r0: 0, dd0: 0, rafS: null, directS: null };
+  function jpegOn(m) {
+    J.cfg = m; J.init = Date.now(); J.next = null; J.conn = 0; J.inflight = 0; J.drawn = 0;
+    if (J.pend) { try { if (J.pend.bmp.close) { J.pend.bmp.close(); } } catch (e) {} J.pend = null; }
+    J.pool.forEach(function (im) { im.jBusy = false; });
+    document.body.classList.add('jpeg');
+    mark('jpeg ' + m.w + 'x' + m.h + ' q' + m.q);
+  }
+  function jpegOff() {
+    document.body.classList.remove('jpeg');
+    J.next = null; J.cfg = null; J.inflight = 0;
+  }
+  function jack(n, shown, ms) {
+    if (vws && vws.readyState === 1) { try { vws.send('{"type":"ja","n":' + n + ',"z":' + shown + ',"ms":' + ms + '}'); } catch (e) {} }
+  }
+  function jpegFrame(buf) {
+    if (buf.byteLength < 14) { return; }
+    var fr = { n: new DataView(buf).getUint32(8), blob: new Blob([new Uint8Array(buf, 12)], { type: 'image/jpeg' }), size: buf.byteLength };
+    J.kb += buf.byteLength / 1000;
+    /* höchstens JPAR Bilder zugleich dekodieren, sonst nur das neueste behalten (das ältere auslassen) */
+    if (J.inflight >= JPAR) { if (J.next) { J.skipped += 1; jack(J.next.n, 0, 0); } J.next = fr; return; }
+    if (JZ === 'bitmap') { bitmapShow(fr); } else { jpegShow(fr); }
+  }
+  function jpegNext() {
+    if (J.next && MODE === 'jpeg' && J.inflight < JPAR) { var nx = J.next; J.next = null; if (JZ === 'bitmap') { bitmapShow(nx); } else { jpegShow(nx); } }
+  }
+  function poolImg() {                             /* freies <img>: nicht das sichtbare, nicht gerade beim Dekodieren */
+    var i, im;
+    for (i = 0; i < J.pool.length; i++) { im = J.pool[i]; if (im !== J.front && !im.jBusy) { return im; } }
+    im = document.createElement('img'); im.className = 'jbild'; im.alt = ''; im.setAttribute('draggable', 'false');
+    J.pool[J.pool.length - 1].parentNode.insertBefore(im, J.pool[J.pool.length - 1].nextSibling);
+    J.pool.push(im);
+    return im;
+  }
+  function jpegShow(fr) {
+    var img = poolImg(), a = Date.now(), done = false, url;
+    try { url = URL.createObjectURL(fr.blob); } catch (e) { J.err = 'Blob: ' + e.message; jack(fr.n, 0, 0); return; }
+    if (img.getAttribute('data-url')) { try { URL.revokeObjectURL(img.getAttribute('data-url')); } catch (e) {} }
+    img.setAttribute('data-url', url);
+    img.jBusy = true; J.inflight += 1;
+    function after() { img.jBusy = false; J.inflight -= 1; jpegNext(); }
+    function ok() {
+      if (done) { return; } done = true;
+      var ms = Date.now() - a;
+      if (MODE === 'jpeg' && fr.n > J.drawn) {    /* fertig dekodiert → nach vorn; ein neueres war schon da → auslassen */
+        img.style.visibility = 'visible';
+        if (J.front !== img) { J.front.style.visibility = 'hidden'; }
+        J.front = img; J.drawn = fr.n;
+        J.shown += 1; J.conn += 1; J.dec += ms; J.decN += 1; J.last = Date.now(); J.w = img.naturalWidth; J.h = img.naturalHeight;
+        if (J.conn === 1) { mark('erstes jpeg (img ×' + JPAR + ')'); status(''); }
+        jack(fr.n, 1, ms);
+      } else { J.skipped += 1; jack(fr.n, 0, ms); }
+      after();
+    }
+    function bad() {
+      if (done) { return; } done = true;
+      if (!J.err) { J.err = 'Bild nicht lesbar'; mark('jpeg fehler'); }
+      jack(fr.n, 0, 0);
+      after();
+    }
+    img.onload = function () {
+      if (img.decode) { img.decode().then(ok, function () { if (img.naturalWidth) { ok(); } else { bad(); } }); } else { ok(); }
+    };
+    img.onerror = bad;
+    img.src = url;
+  }
+  function bitmapShow(fr) {
+    var a = Date.now();
+    J.inflight += 1;
+    createImageBitmap(fr.blob).then(function (bmp) {
+      J.inflight -= 1;
+      var ms = Date.now() - a;
+      if (MODE === 'jpeg' && fr.n > J.drawn && (!J.pend || fr.n > J.pend.n)) {   /* neuestes fertiges Bild wartet aufs Zeichnen */
+        if (J.pend) { J.skipped += 1; jack(J.pend.n, 0, J.pend.ms); try { if (J.pend.bmp.close) { J.pend.bmp.close(); } } catch (e) {} }
+        J.pend = { n: fr.n, bmp: bmp, ms: ms, at: Date.now() };
+        if (!J.rafReq) { J.rafReq = true; raf(bitmapDraw); }
+        if (!J.pendTimer) { J.pendTimer = setTimeout(function () { J.pendTimer = null; if (J.pend) { J.direct += 1; bitmapDraw(true); } }, 250); }
+      } else { J.skipped += 1; jack(fr.n, 0, ms); try { if (bmp.close) { bmp.close(); } } catch (e) {} }
+      jpegNext();
+    }, function (e) {
+      J.inflight -= 1;
+      if (!J.err) { J.err = 'Bitmap: ' + (e && e.message || e); mark('jpeg fehler'); }
+      jack(fr.n, 0, 0);
+      jpegNext();
+    });
+  }
+  /* Zeichnen im Takt von requestAnimationFrame (direkt=true: Rückfall, wenn 250 ms kein Takt kam) */
+  function bitmapDraw(direkt) {
+    if (direkt !== true) { J.rafReq = false; }
+    var p = J.pend;
+    if (!p) { return; }
+    J.pend = null;
+    if (direkt !== true) { J.rafDraws += 1; }
+    if (J.pendTimer) { clearTimeout(J.pendTimer); J.pendTimer = null; }
+    try {
+      if (!jc) { jc = document.createElement('canvas'); jc.className = 'jbild'; document.body.insertBefore(jc, document.getElementById('st')); }
+      if (!jcx) { jcx = jc.getContext('2d', { alpha: false }) || jc.getContext('2d'); }
+      if (jc.width !== p.bmp.width || jc.height !== p.bmp.height) { jc.width = p.bmp.width; jc.height = p.bmp.height; }
+      jcx.drawImage(p.bmp, 0, 0);
+      J.drawn = p.n;
+      J.shown += 1; J.conn += 1; J.dec += p.ms; J.decN += 1; J.last = Date.now(); J.w = p.bmp.width; J.h = p.bmp.height;
+      if (J.conn === 1) { mark('erstes jpeg (bitmap ×' + JPAR + ')'); status(''); jc.style.visibility = 'visible'; }
+      jack(p.n, 1, p.ms + Date.now() - p.at);
+    } catch (e) { if (!J.err) { J.err = 'Canvas: ' + (e && e.message || e); mark('jpeg fehler'); } jack(p.n, 0, p.ms); }
+    try { if (p.bmp.close) { p.bmp.close(); } } catch (e) {}
+  }
+  function jpegFail(reason) {
+    if (MODE !== 'jpeg') { return; }
+    why = 'JPEG: ' + reason;
+    mark('aufgegeben: ' + why);
+    sendStats();
+    MODE = 'mse'; quick = true;
+    jpegOff();
+    try { if (vws) { vws.close(); } } catch (e) {}
+  }
+
+  /* ---------- Bild per WebRTC: Angebot über den Video-WebSocket, Bild direkt von go2rtc ---------- */
+  function closeRtc() { if (rtc) { var pc = rtc; rtc = null; try { pc.close(); } catch (e) {} } }
+  function rtcFail(reason, minutes) {
+    if (MODE !== 'webrtc') { return; }
+    why = reason;
+    mark('aufgegeben: ' + reason);
+    sendStats();                                  /* letzte WebRTC-Messwerte an die VM, bevor die Verbindung zu geht */
+    MODE = 'mse'; quick = true;                   /* weiter mit dem Videostrom über WebSocket */
+    closeRtc();
+    try { if (vws) { vws.close(); } } catch (e) {}
+    if (WANT_RTC && !rtcRetryTimer) {             /* später WebRTC erneut: nach 1, 2, 4, 8, dann alle 16 min – verwirft der Fernseher alles: 60 min */
+      var wait = (rtcBlocked ? 60 : (minutes || Math.min(16, Math.pow(2, rtcRetry)))) * 60000;
+      if (!minutes) { rtcRetry += 1; }
+      rtcRetryTimer = setTimeout(function () {
+        rtcRetryTimer = null;
+        if (MODE !== 'mse') { return; }
+        mark('webrtc erneut'); MODE = 'webrtc'; quick = true;
+        try { if (vws) { vws.close(); } else { connectVideo(); } } catch (e) {}
+      }, wait);
+    }
+  }
+  function iceDone(pc, wait) {
+    return new Promise(function (resolve) {
+      if (pc.iceGatheringState === 'complete') { resolve(); return; }
+      var t = setTimeout(resolve, wait);
+      pc.addEventListener('icegatheringstatechange', function () { if (pc.iceGatheringState === 'complete') { clearTimeout(t); resolve(); } });
+    });
+  }
+  function startRtc(ws) {
+    var pc;
+    closeRtc();
+    try { pc = new RTCPeerConnection({ iceServers: [] }); } catch (e) { rtcFail('WebRTC: ' + e.message); return; }
+    rtc = pc; rtcT0 = Date.now(); R = {};
+    mark('pc neu');
+    try { pc.addTransceiver('video', { direction: 'recvonly' }); } catch (e) {}
+    if (TON) { try { pc.addTransceiver('audio', { direction: 'recvonly' }); } catch (e) {} }
+    pc.onconnectionstatechange = function () { if (rtc === pc) { mark('pc ' + pc.connectionState); } };
+    pc.ontrack = function (e) {
+      var s = e.streams && e.streams[0], cs;
+      if (e.track && e.track.kind === 'audio') {      /* Tonspur zum Bild dazu – nicht das Bild ersetzen */
+        mark('tonspur');
+        R.atrack = e.track;
+        cs = v.srcObject;
+        if (cs && cs.getAudioTracks) { try { if (cs.getAudioTracks().indexOf(e.track) < 0) { cs.addTrack(e.track); } } catch (x) {} }
+        return;
+      }
+      if (!s) { s = new MediaStream(); s.addTrack(e.track); }
+      mark('track');
+      R.track = e.track;
+      try { e.track.onmute = function () { if (rtc === pc) { mark('spur stumm'); } }; e.track.onunmute = function () { if (rtc === pc) { mark('spur laut'); } }; } catch (x) {}
+      if (R.atrack && s.getAudioTracks && s.getAudioTracks().indexOf(R.atrack) < 0) { try { s.addTrack(R.atrack); } catch (x) {} }
+      if (v.srcObject !== s) { v.srcObject = s; }
+      /* so wenig Puffer wie möglich (je nach Browser-Fassung heißt die Einstellung anders oder fehlt) */
+      try { if (e.receiver && 'playoutDelayHint' in e.receiver) { e.receiver.playoutDelayHint = 0; } } catch (x) {}
+      try { if (e.receiver && 'jitterBufferTarget' in e.receiver) { e.receiver.jitterBufferTarget = 0; } } catch (x) {}
+      play();
+    };
+    pc.oniceconnectionstatechange = function () {
+      if (rtc !== pc) { return; }
+      mark('ice ' + pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed') { rtcFail('keine Verbindung (ICE)'); }
+      else if ((pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') && !R.conn) { R.conn = Date.now(); }
+    };
+    pc.createOffer({ offerToReceiveVideo: true })
+      .then(function (o) { return pc.setLocalDescription(o); })
+      .then(function () { return iceDone(pc, 1500); })
+      .then(function () { if (rtc === pc && ws.readyState === 1) { mark('angebot'); ws.send(JSON.stringify({ type: 'offer', sdp: onlyNet(pc.localDescription.sdp), quelle: SRC })); } })
+      .then(null, function (e) { if (rtc === pc) { rtcFail('Angebot: ' + (e && e.message ? e.message : e)); } });
+  }
+  /* Nur Kandidaten mit dem gewünschten Transportweg (tcp/udp) – in Angebot und Antwort, sonst findet ICE den anderen Weg doch */
+  function onlyNet(sdp) {
+    if (RTCNET !== 'tcp' && RTCNET !== 'udp') { return sdp; }
+    return sdp.split(/\r?\n/).filter(function (l) {
+      return !(l.indexOf('a=candidate:') === 0 && (' ' + l.toLowerCase() + ' ').indexOf(RTCNET === 'tcp' ? ' udp ' : ' tcp ') >= 0);
+    }).join(String.fromCharCode(13) + String.fromCharCode(10));
+  }
+  /* Ton getrennt vom Bild (.32): Stehen Bild und Ton in derselben Gruppe (msid), hält der Browser das Bild zurück, bis der
+     Ton da ist – mit Ton stieg der Jitterpuffer am Fernseher von ~22 auf 100–300 ms (24.10. 09:44). Der Ton bekommt deshalb
+     eine eigene Gruppe: Bild so schnell wie ohne Ton, der Ton läuft dafür etwas nach. Nur mit ?tonsync=0 – Voreinstellung
+     gekoppelt (bestätigter Stand Wohnzimmer 24.10. 10:12), bis der Vergleich gemacht ist. */
+  var TONSYNC = Q.tonsync !== '0';
+  function tonEigen(sdp) {
+    if (!TON || TONSYNC) { return sdp; }
+    var nl = String.fromCharCode(13) + String.fromCharCode(10), audio = false, n = 0;
+    var out = sdp.split(/\r?\n/).map(function (l) {
+      if (l.indexOf('m=') === 0) { audio = l.indexOf('m=audio') === 0; return l; }
+      if (!audio) { return l; }
+      if (l.indexOf('a=msid:') === 0) { var p = l.substring(7).split(' '); if (p[0] && p[0] !== '-') { p[0] += '-ton'; n += 1; } return 'a=msid:' + p.join(' '); }
+      if (/^a=ssrc:\d+ msid:/.test(l)) { n += 1; return l.replace(/msid:(\S+)/, 'msid:$1-ton'); }
+      return l;
+    });
+    R.tonsync = n ? 'getrennt' : 'ohne msid';
+    return out.join(nl);
+  }
+  function answerRtc(sdp) {
+    var pc = rtc;
+    if (!pc) { return; }
+    sdp = tonEigen(onlyNet(sdp));
+    pc.setRemoteDescription({ type: 'answer', sdp: sdp })
+      .then(null, function (e) { if (rtc === pc) { rtcFail('Antwort: ' + (e && e.message ? e.message : e)); } });
+  }
+  /* Schlüsselbild bei der VM anfordern (höchstens 1/s): zum Einstieg und wenn nach Paketverlust nichts mehr dekodiert
+     wird. Der Kodierer schickt sonst keine – sie wären groß und kämen als Paket-Schwall. */
+  function askKey(why) {
+    var now = Date.now();
+    if (!vws || vws.readyState !== 1 || now - (R.keyAt || 0) < 1000) { return; }
+    R.keyAt = now; R.keys = (R.keys || 0) + 1; R.keyWhy = why;
+    if (R.keys <= 3 || R.keys % 10 === 0) { mark('key ' + why + ' #' + R.keys); }
+    try { vws.send(JSON.stringify({ type: 'key', grund: why })); } catch (e) {}
+  }
+  /* Messwerte aus WebRTC: Bilder/s, Datenrate, Jitterpuffer, Dekodierzeit, Paketverlust */
+  function rtcPoll() {
+    var pc = rtc;
+    if (!pc || !pc.getStats) { return; }
+    pc.getStats().then(function (rep) {
+      var now = Date.now(), inb = null, trk = null, pair = null, cand = {}, tp = null, byId = {}, ainb = null;
+      rep.forEach(function (s) {
+        byId[s.id] = s;
+        if (s.type === 'inbound-rtp' && (s.kind === 'video' || s.mediaType === 'video')) { inb = s; }
+        else if (s.type === 'inbound-rtp' && (s.kind === 'audio' || s.mediaType === 'audio')) { ainb = s; }
+        else if (s.type === 'track' && s.kind === 'video') { trk = s; }
+        else if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') { pair = s; }
+        else if (s.type === 'local-candidate' || s.type === 'remote-candidate') { cand[s.id] = s; }
+        else if (s.type === 'transport') { tp = s; }
+      });
+      function addr(c) { return c ? (c.address || c.ip || '?') + ':' + c.port : '?'; }
+      R.proto = pair && cand[pair.localCandidateId] ? cand[pair.localCandidateId].protocol : R.proto;
+      if (pair) { R.pair = addr(cand[pair.localCandidateId]) + ' > ' + addr(cand[pair.remoteCandidateId]); R.pbytes = pair.bytesReceived; }
+      if (tp) { R.dtls = tp.dtlsState; R.tbytes = tp.bytesReceived; }   /* kommt überhaupt etwas an? (auch was SRTP verwirft) */
+      if (tp) { R.chiffre = [tp.srtpCipher, tp.dtlsCipher, tp.tlsVersion].filter(function (x) { return !!x; }).join(' / ') || '?'; }
+      if (R.track) { R.spur = R.track.readyState + (R.track.muted ? ' stumm' : ''); }
+      if (ainb) {   /* Ton (.30): kommen Tonpakete an, ist etwas zu hören? */
+        R.ton = (ainb.packetsReceived || 0) + ' Tonpakete' + (typeof ainb.audioLevel === 'number' ? ', Pegel ' + ainb.audioLevel.toFixed(3) : '') +
+          (typeof ainb.totalAudioEnergy === 'number' ? ', Energie ' + ainb.totalAudioEnergy.toFixed(4) : '');
+      }
+      /* Fehlersuche Schlafzimmer: gibt es überhaupt einen Empfangsstrom, mit welchem Format? */
+      var cd = inb && inb.codecId ? byId[inb.codecId] : null;
+      R.empfang = inb ? 'ssrc ' + inb.ssrc + ', ' + (cd ? String(cd.mimeType || '').replace('video/', '') + '/' + cd.payloadType : 'ohne Format') +
+        (typeof inb.framesReceived === 'number' ? ', ' + inb.framesReceived + ' Bilder empfangen' : '') +
+        (inb.decoderImplementation ? ', ' + inb.decoderImplementation : '') : 'kein Empfangsstrom';
+      /* Daten kommen an, aber 3 s nach dem Verbinden noch kein einziges Paket → der Fernseher verwirft alles (bis Aus/An) */
+      var arrived = Math.max(R.tbytes || 0, R.pbytes || 0);
+      if (rtc === pc && R.conn && (!R.dtls || R.dtls === 'connected') && now - R.conn > 3000 && arrived > 200000 && !(inb && inb.packetsReceived)) {
+        rtcBlocked = 'verwirft ' + Math.round(arrived / 1000) + ' KB';
+        rtcFail('Fernseher verwirft alle WebRTC-Pakete (' + Math.round(arrived / 1000) + ' KB angekommen, 0 Pakete)');
+        return;
+      }
+      if (!inb || rtc !== pc) { return; }
+      function num(a, b) { return typeof a === 'number' ? a : (typeof b === 'number' ? b : null); }
+      var frames = num(inb.framesDecoded, trk && trk.framesDecoded) || 0, bytes = inb.bytesReceived || 0;
+      var jbd = num(inb.jitterBufferDelay, trk && trk.jitterBufferDelay), jbc = num(inb.jitterBufferEmittedCount, trk && trk.jitterBufferEmittedCount);
+      var dec = num(inb.totalDecodeTime, null), P = R.prev, dt;
+      /* Bilder, die beim Video-Element ankommen – bleibt der Zähler stehen, während WebRTC weiter dekodiert, steht das Bild */
+      var q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : null;
+      var ef = q ? q.totalVideoFrames : (typeof v.webkitDecodedFrameCount === 'number' ? v.webkitDecodedFrameCount : null);
+      var ed = q ? q.droppedVideoFrames : (typeof v.webkitDroppedFrameCount === 'number' ? v.webkitDroppedFrameCount : null), rn = rafN;
+      if (P && now > P.t) {
+        dt = (now - P.t) / 1000;
+        S.fps = Math.round((frames - P.frames) / dt);
+        S.kbit = Math.round((bytes - P.bytes) * 8 / dt / 1000);
+        if (jbd !== null && jbc !== null && jbc > P.jbc) { R.jitter = Math.round((jbd - P.jbd) / (jbc - P.jbc) * 1000); }
+        if (dec !== null && frames > P.frames) { R.decode = Math.round((dec - P.dec) / (frames - P.frames) * 1000); }
+        /* Zähler des Video-Elements springt nach dem Neu-Anhängen auf 0 → diese Sekunde nicht werten (sonst negative Werte) */
+        var reset = (typeof ef === 'number' && typeof P.ef === 'number' && ef < P.ef) || (typeof ed === 'number' && typeof P.ed === 'number' && ed < P.ed);
+        if (!reset && typeof ef === 'number' && typeof P.ef === 'number') { R.efps = Math.round((ef - P.ef) / dt); }
+        if (!reset && typeof ed === 'number' && typeof P.ed === 'number') { R.edrop = Math.round((ed - P.ed) / dt); R.shown = Math.max(0, (R.efps || 0) - R.edrop); }
+        R.rafs = Math.round((rn - P.rn) / dt);
+        if (ZC) { CV.s = Math.round((CV.n - CV.n0) / dt); CV.avg = CV.n > CV.n0 ? Math.round((CV.ms - CV.ms0) / (CV.n - CV.n0) * 10) / 10 : null; CV.n0 = CV.n; CV.ms0 = CV.ms; }
+      }
+      if (frames > (P ? P.frames : 0)) { R.good = (R.good || 0) + frames - (P ? P.frames : 0); R.progress = now; lastData = now; }
+      R.prev = { t: now, frames: frames, bytes: bytes, jbd: jbd || 0, jbc: jbc || 0, dec: dec || 0, ef: ef, ed: ed, rn: rn };
+      R.frames = frames;
+      R.lost = inb.packetsLost || 0; R.nack = inb.nackCount || 0; R.pli = inb.pliCount || 0;
+      R.packets = inb.packetsReceived || 0; R.bytes = bytes;
+      if (frames > 0 && !R.first) { R.first = 1; mark('erstes bild'); }
+      /* Fernseher kommt beim Dekodieren nicht mit (Wohnzimmer 23.10. nach mehrfachem Neuladen: 7 statt 30 Bilder/s, auch nach Aus/An)
+         → nach 20 s mit MSE weiter: dort dekodiert der Hardware-Decoder flüssig */
+      if (P && (R.good || 0) > 60 && S.fps < 20 && (R.decode || 0) > 40) {
+        if (!R.slow) { R.slow = now; mark('langsam ' + S.fps + ' B/s'); }
+        else if (now - R.slow > 20000 && rtc === pc) {
+          /* erst kleineres Bild (voll → 1920 → 1280), dann MSE */
+          var next = SRC === 'vp8' ? '' : SIZES[SIZES.indexOf(SRC) + 1];   /* VP8 hat keine kleinere Stufe */
+          if (next && (CFG.quellen || []).indexOf('bild_' + next) >= 0 && vws && vws.readyState === 1) {
+            mark('zu langsam (' + S.fps + ' B/s) → Bild ' + next);
+            SRC = next;
+            startRtc(vws);
+            return;
+          }
+          rtcBlocked = 'zu langsam (' + S.fps + ' Bilder/s)';
+          rtcFail('Fernseher dekodiert WebRTC zu langsam (' + S.fps + ' Bilder/s)');
+          return;
+        }
+      } else if (S.fps >= 20) { R.slow = 0; }
+      /* Anzeige steht, obwohl dekodiert wird (Schlafzimmer 23.10. 20:01) → neu anhängen, dann 1 min MSE */
+      /* im Canvas-Versuch zeigt das winzige Video-Element absichtlich nichts – dann zählen die gezeichneten Bilder.
+         Nur am Fernseher: Firefox am PC meldet alle WebRTC-Bilder als verworfen und fiel sonst grundlos auf MSE (24.10. 09:13) */
+      var frozen = TV && P && (R.good || 0) > 60 && S.fps >= 10 && !document.hidden &&
+        (cvOn ? (typeof CV.s === 'number' && CV.s <= 1) : (typeof R.shown === 'number' && R.shown <= 1));
+      if (frozen) {
+        R.frozenN = (R.frozenN || 0) + 1;
+        if (R.frozenN === 5) {
+          mark('anzeige steht (zeigt ' + R.shown + ' von ' + S.fps + ' B/s, Seite ' + R.rafs + '/s)');
+          try { var ms = v.srcObject; v.srcObject = null; v.srcObject = ms; play(); } catch (x) {}
+        } else if (R.frozenN >= 11 && rtc === pc) {
+          var again = Date.now() - lastFreeze < 30 * 60000;
+          lastFreeze = Date.now();
+          if (again) { rtcBlocked = 'Anzeige steht'; }
+          rtcFail('Fernseher zeigt das WebRTC-Bild nicht an' + (again ? ' (zweimal in 30 min)' : ' – 1 min MSE, dann WebRTC'), again ? 0 : 1);
+          return;
+        }
+      } else { R.frozenN = 0; }
+      if ((R.good || 0) >= 1800) { rtcRetry = 0; rtcBlocked = ''; }   /* lief 1 min sauber → nächster Rückfall wieder mit 1 min Pause */
+      /* Dekoder meldet fehlendes Schlüsselbild (PLI/FIR) oder Bild steht seit 1,2 s → Schlüsselbild anfordern */
+      var kreq = (inb.pliCount || 0) + (inb.firCount || 0);
+      if (kreq > (R.kreq || 0)) { R.kreq = kreq; askKey('pli'); }
+      else if (R.conn && now - Math.max(R.progress || 0, R.conn) > 1200) { askKey(R.progress ? 'steht' : 'start'); }
+      R.dropped = num(inb.framesDropped, trk && trk.framesDropped);
+      R.freezes = num(inb.freezeCount, trk && trk.freezeCount);
+      R.rtt = pair && typeof pair.currentRoundTripTime === 'number' ? Math.round(pair.currentRoundTripTime * 1000) : null;
+      R.size = (inb.frameWidth || (trk && trk.frameWidth) || v.videoWidth) + 'x' + (inb.frameHeight || (trk && trk.frameHeight) || v.videoHeight);
+      if (typeof R.jitter === 'number') { S.delay = R.jitter + (R.decode || 0); S.lag = R.jitter; }
+    }, function () {});
+  }
+  setInterval(rtcPoll, 1000);
+
+  /* Abspielen dicht am neuesten Bild halten, alte Daten verwerfen, Messwerte */
+  var fr0 = null, t0 = Date.now(), b0 = 0, raf0 = 0, dr0 = null, dbgAt = 0;
+  setInterval(function () {
+    var n = v.buffered ? v.buffered.length : 0, now = Date.now(), cur = v.currentTime;
+    if (sb && n) {
+      var end = v.buffered.end(n - 1), start = v.buffered.start(n - 1), k = -1, i;
+      for (i = 0; i < n; i++) { if (cur >= v.buffered.start(i) - 0.05 && cur <= v.buffered.end(i) + 0.05) { k = i; } }
+      S.lag = Math.round((end - cur) * 1000);
+      S.ranges = n;
+      if (k >= 0 && k < n - 1 && v.buffered.end(k) - cur < 0.1) { v.currentTime = v.buffered.start(k + 1); S.gaps += 1; }   /* über eine Lücke im Puffer springen */
+      else if (k < 0 || (end - cur > target + slack && now - lastSeek > (TV ? 8000 : 1000))) {                         /* zu weit hinten: zum neuesten Bild springen */
+        v.currentTime = Math.max(start, end - target); S.seeks += 1; lastSeek = now;
+      } else if (!TV) {
+        /* am PC sanft aufholen; der Fernseher verträgt kein anderes Abspieltempo (Bild steht oder hängt, getestet 23.10.) */
+        var rate = end - cur > target + 0.25 ? 1.15 : (end - cur > target + 0.06 ? 1.05 : 1);
+        if (v.playbackRate !== rate) { try { v.playbackRate = rate; S.rateChanges += 1; } catch (e) {} }
+        S.rate = v.playbackRate;
+      }
+      if (v.paused) { var p = v.play(); if (p && p.then) { p.then(null, function () {}); } }
+      trim(false);
+      if (stamp && cur >= stamp.m && cur - stamp.m < 5) { S.delay = Math.round(now - stamp.a - (cur - stamp.m) * 1000); }
+      if (lastData && now - lastData < 2000) { status(''); }
+    }
+    if (MODE === 'webrtc' && rtc) {
+      /* kein Bild in 12 s oder Bild steht, bevor es 2 s lief → MSE; lief es schon und steht dann → neu verbinden */
+      if (!R.progress) { if (now - rtcT0 > 12000) { rtcFail('nach 12 s kein Bild'); } }
+      else if (now - R.progress > 6000) {
+        if ((R.good || 0) < 60) { rtcFail('Bild bleibt stehen'); }
+        /* Lief es schon und steht dann (Streamer startet neu, Netz weg): 1 min MSE, dann WebRTC – nicht sofort eine neue
+           Verbindung. Das Schlafzimmer verwarf danach zweimal alles bis Aus/An (17:11, 19:22); mit 1 min MSE dazwischen
+           klappte es zweimal (18:35, 18:45). */
+        else { rtcFail('Bild steht (Streamer weg?) – 1 min MSE, dann WebRTC', 1); }
+      } else if (now - R.progress < 3000) { status(''); if (v.paused) { play(); } }
+    }
+    if (MODE === 'jpeg') {
+      if (J.cfg && !J.conn && now - J.init > 10000) { jpegFail('nach 10 s kein Bild'); }
+      else if (now - J.t0 >= 2000) {
+        var dt = (now - J.t0) / 1000;
+        J.s = Math.round((J.shown - J.n0) / dt * 10) / 10;
+        J.skipS = Math.round((J.skipped - J.k0) / dt * 10) / 10;
+        J.ms = J.decN > J.dn0 ? Math.round((J.dec - J.d0) / (J.decN - J.dn0)) : null;
+        J.kbS = J.shown > J.n0 ? Math.round((J.kb - J.b0) / Math.max(1, J.shown - J.n0 + J.skipped - J.k0)) : null;
+        S.fps = Math.round(J.s);
+        S.kbit = Math.round((S.bytes - b0) * 8 / (now - t0));
+        S.raf = Math.round((rafN - raf0) * 1000 / (now - t0));
+        S.delay = J.delay;
+        J.rafS = Math.round((J.rafDraws - J.r0) / dt * 10) / 10; J.directS = Math.round((J.direct - J.dd0) / dt * 10) / 10;
+        J.n0 = J.shown; J.k0 = J.skipped; J.d0 = J.dec; J.dn0 = J.decN; J.b0 = J.kb; J.t0 = now; J.r0 = J.rafDraws; J.dd0 = J.direct;
+        b0 = S.bytes; t0 = now; raf0 = rafN;
+      }
+    }
+    if (MODE === 'mse' && vws && lastData && now - lastData > 5000) { status('Kein Bild – verbinde neu …'); lastData = 0; try { vws.close(); } catch (e) {} }
+    if (MODE === 'mse' && now - t0 >= 2000) {
+      var fr = typeof v.webkitDecodedFrameCount === 'number' ? v.webkitDecodedFrameCount : (v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().totalVideoFrames : null);
+      if (fr === null || fr0 === null) { S.fps = 0; } else if (fr >= fr0) { S.fps = Math.round((fr - fr0) * 1000 / (now - t0)); }   /* Zähler neu (Wechsel des Bildwegs) → alten Wert behalten */
+      S.kbit = Math.round((S.bytes - b0) * 8 / (now - t0));
+      var dr = typeof v.webkitDroppedFrameCount === 'number' ? v.webkitDroppedFrameCount : null;
+      S.raf = Math.round((rafN - raf0) * 1000 / (now - t0));
+      S.edrop = (dr !== null && dr0 !== null && dr >= dr0) ? Math.round((dr - dr0) * 1000 / (now - t0)) : null;
+      fr0 = fr; b0 = S.bytes; t0 = now; raf0 = rafN; dr0 = dr;
+    }
+    if (Q.debug && now - dbgAt >= 1000) {        /* 1×/s: öfter kostete es das Schlafzimmer die halbe Bildrate (.32) */
+      dbgAt = now;
+      var drop = typeof v.webkitDroppedFrameCount === 'number' ? v.webkitDroppedFrameCount : '?';
+      dbg.style.display = 'block';
+      dbg.textContent = (MODE === 'jpeg' ? ['Uhr ' + clock(),
+        'Bildweg JPEG ' + (J.cfg ? J.cfg.w + '×' + J.cfg.h + ', Qualität ' + J.cfg.q + ', Vorrat ' + J.cfg.vorrat : '…') + ', ' + (JZ === 'bitmap' ? 'Bitmap ×' + JPAR : 'img ×' + JPAR),
+        'Bilder/s angezeigt ' + (J.s === null ? '…' : J.s) + ', ausgelassen ' + (J.skipS === null ? '…' : J.skipS) + '/s, Dekodieren ' + (J.ms === null ? '…' : J.ms + ' ms'),
+        'Aufnahme bis Anzeige ' + (J.delay === null ? '…' : J.delay + ' ms') + ' (mit Rückweg), Seite ' + S.raf + '/s',
+        (S.kbit / 1000).toFixed(1) + ' Mbit/s, ' + (J.kbS === null ? '…' : J.kbS + ' KB/Bild') + (J.err ? ' – ' + J.err : '')]
+        : MODE === 'webrtc' ? ['Uhr ' + clock(),
+        'Bildweg WebRTC' + (SRC ? ' (' + SRC + ')' : '') + ' über ' + (R.proto || RTCNET).toUpperCase() + ', ' + (R.size || '…'),
+        'Verzögerung im Fernseher ' + (S.delay === null ? '…' : S.delay + ' ms') + ' (Jitterpuffer ' + (R.jitter === undefined ? '…' : R.jitter) + ' ms, Dekodieren ' + (R.decode === undefined ? '…' : R.decode) + ' ms)',
+        'Bilder/s ' + S.fps + ' (im Video-Element ' + (R.efps === undefined ? '?' : R.efps) + ', angezeigt ' + (R.shown === undefined ? '?' : R.shown) + ', Seite ' + (R.rafs === undefined ? '?' : R.rafs) + '/s), verworfen ' + (R.dropped === null || R.dropped === undefined ? '?' : R.dropped) + ', Standbilder ' + (R.freezes === null || R.freezes === undefined ? '?' : R.freezes),
+        'Paketverlust ' + (R.lost || 0) + ', NACK ' + (R.nack || 0) + ', PLI ' + (R.pli || 0) + ', Schlüsselbilder angefordert ' + (R.keys || 0) + ', RTT ' + (R.rtt === null || R.rtt === undefined ? '?' : R.rtt) + ' ms',
+        (S.kbit / 1000).toFixed(1) + ' Mbit/s' + (ZC ? ', Canvas ' + (CV.s === null ? '?' : CV.s) + '/s, ' + (CV.avg === null ? '?' : CV.avg) + ' ms' + (CV.err ? ' – ' + CV.err : '') : '')]
+        : ['Uhr ' + clock(),
+        'Bildweg MSE' + (why ? ' (WebRTC aufgegeben: ' + why + ')' : ''),
+        'Verzögerung im Fernseher ' + (S.delay === null ? '…' : S.delay + ' ms') + ', Puffer ' + S.lag + ' ms (Ziel ' + target + ' s)',
+        'Bilder/s ' + S.fps + ', verworfen ' + drop, 'Sprünge ' + S.seeks + ', Hänger ' + S.stalls,
+        CFG.w + '×' + CFG.h + ' ' + codec + ', ' + (S.kbit / 1000).toFixed(1) + ' Mbit/s']).join(String.fromCharCode(10));
+    }
+  }, 250);
+  if (Q.uhr) { uhr.style.display = 'block'; (function loop() { uhr.textContent = clock(); raf(loop); })(); }
+
+  /* Fähigkeiten des Geräts – Grundlage für Auflösung und Format je Fernseher (sichtbar unter /api/status) */
+  var CAPS = { bildschirm: screen.width + 'x' + screen.height, pixelfaktor: window.devicePixelRatio || 1, fenster: window.innerWidth + 'x' + window.innerHeight, h264: {} };
+  try {
+    var LV = { '1080p (4.1)': 'avc1.640029', '4K30 (5.1)': 'avc1.640033', '4K60 (5.2)': 'avc1.640034' };
+    Object.keys(LV).forEach(function (n) { CAPS.h264[n] = !!(window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="' + LV[n] + '"')); });
+    if (navigator.mediaCapabilities && navigator.mediaCapabilities.decodingInfo) {
+      navigator.mediaCapabilities.decodingInfo({ type: 'media-source', video: { contentType: 'video/mp4; codecs="avc1.640033"', width: 3840, height: 2160, bitrate: 20000000, framerate: 30 } })
+        .then(function (r) { CAPS.h264_4k_dekoder = { geht: r.supported, fluessig: r.smooth, sparsam: r.powerEfficient }; }, function () {});
+    }
+  } catch (e) {}
+
+  /* Messwerte alle 5 s an die VM (sichtbar unter /api/status) */
+  function sendStats() {
+    if (vws && vws.readyState === 1) {
+      CAPS.fenster = window.innerWidth + 'x' + window.innerHeight;
+      var o = { type: 'stats', verzoegerung_ms: S.delay, puffer_ms: S.lag, bilder_s: S.fps, mbit_s: S.kbit / 1000, haenger: S.stalls,
+        bild: v.videoWidth + 'x' + v.videoHeight, geraet: CAPS, browser: navigator.userAgent.substring(0, 140), seite_fassung: CFG.fassung || '' };
+      if (MODE === 'jpeg') {
+        o.jpeg_wunsch = JSIZE; o.jpeg_zeichnen = JZ + (JZ === 'bitmap' ? ' ×' + JPAR : ''); o.anzeige_s = J.s; o.ausgelassen_s = J.skipS; o.dekodieren_ms = J.ms; o.kb_bild = J.kbS;
+        o.raf_s = S.raf; o.bild = J.w + 'x' + J.h; o.bilder = J.shown;
+        if (JZ === 'bitmap') { o.raf_gezeichnet_s = J.rafS; o.direkt_gezeichnet_s = J.directS; }
+        if (J.err) { o.jpeg_fehler = J.err; }
+      } else if (MODE === 'webrtc') {
+        o.quelle_wunsch = SRC; o.jitter_ms = R.jitter; o.dekodieren_ms = R.decode; o.verworfen = R.dropped; o.standbilder = R.freezes;
+        o.paketverlust = R.lost; o.nack = R.nack; o.pli = R.pli; o.rtt_ms = R.rtt; o.element_bilder_s = R.efps;
+        o.anzeige_s = R.shown; o.element_verworfen_s = R.edrop; o.raf_s = R.rafs;
+        o.transport = R.proto || ('?' + RTCNET); o.schluesselbild_anfragen = R.keys || 0; o.schluesselbild_grund = R.keyWhy || '';
+        o.pc = rtc ? rtc.connectionState : 'zu'; o.ice = rtc ? rtc.iceConnectionState : 'zu'; o.dtls = R.dtls || '';
+        o.pakete = R.packets || 0; o.paar = R.pair || ''; o.webrtc_versuche = rtcRetry;
+        o.paar_kb = Math.round((R.pbytes || 0) / 1000); o.transport_kb = Math.round((R.tbytes || 0) / 1000); o.bilder = R.frames || 0;
+        o.empfang = R.empfang || ''; o.chiffre = R.chiffre || ''; o.spur = R.spur || '';
+        if (ZC) { o.zeichnen = cvOn ? 'canvas' : 'canvas (aus)'; o.canvas_s = CV.s; o.canvas_ms = CV.avg; if (CV.err) { o.canvas_fehler = CV.err; } }
+        if (why) { o.letzter_rueckfall = why; }
+      } else {
+        o.ziel_s = target; o.verworfen = typeof v.webkitDroppedFrameCount === 'number' ? v.webkitDroppedFrameCount : null; o.spruenge = S.seeks;
+        o.luecken = S.gaps; o.pufferstuecke = S.ranges; o.tempo = S.rate; o.tempowechsel = S.rateChanges;
+        o.raf_s = S.raf; o.element_verworfen_s = S.edrop;
+        if (why) { o.webrtc_aufgegeben = why; }
+        if (WANT_RTC) { o.webrtc_versuche = rtcRetry; }
+        if (rtcBlocked) { o.webrtc_blockiert = rtcBlocked; }
+      }
+      if (TON) {
+        if (MODE === 'webrtc') { o.ton_sync = TONSYNC ? 'gekoppelt' : (R.tonsync || '?'); }
+        o.ton = (MODE === 'webrtc' ? (R.ton || (R.atrack ? 'Tonspur ohne Pakete' : 'keine Tonspur')) :
+          ('MSE ' + (codec.indexOf('mp4a') >= 0 ? 'mit' : 'ohne') + ' Ton' + (typeof v.webkitAudioDecodedByteCount === 'number' ?
+            ', dekodiert ' + Math.round(v.webkitAudioDecodedByteCount / 1000) + ' KB' : ''))) + (v.muted ? ', stumm' : ', laut');
+      }
+      o.verlauf = EV.slice(-12);
+      try { vws.send(JSON.stringify(o)); } catch (e) {}
+    }
+  }
+  setInterval(sendStats, 5000);
+
+  /* ---------- Bedienung: Zeiger, Klicks, Rad, Tasten → VM ---------- */
+  function connectInput() {
+    var ws = new WebSocket(WS + '/ws/input');
+    iws = ws;
+    ws.onmessage = function (ev) {
+      var m;
+      try { m = JSON.parse(ev.data); } catch (x) { return; }
+      if (m && m.type === 'tastatur') { kbShow(m); }
+      else if (m && m.type === 'hinweis') { hint(String(m.text || '')); }
+    };
+    ws.onclose = function () { if (iws === ws) { iws = null; } setTimeout(connectInput, 1500); };
+    /* Beim Öffnen der Seite HA-Reiter nach vorn (.32) – nicht nach dem Neuladen wegen einer neuen Fassung, nicht mit ?reiter=bleiben */
+    ws.onopen = function () { if (!homeSent && !Q.neu && Q.reiter !== 'bleiben') { homeSent = true; send({ t: 'c', c: 'zeige_home' }); mark('ha nach vorn'); } };
+  }
+  var homeSent = false;
+  function send(o) { if (iws && iws.readyState === 1) { iws.send(JSON.stringify(o)); } }
+  function rel(e) {
+    var r = (MODE === 'jpeg' ? (JZ === 'bitmap' && jc ? jc : J.front) : (cvOn ? cv : v)).getBoundingClientRect(), s = Math.min(r.width / CFG.w, r.height / CFG.h);
+    var cw = CFG.w * s, ch = CFG.h * s, ox = r.left + (r.width - cw) / 2, oy = r.top + (r.height - ch) / 2;
+    return { x: (e.clientX - ox) / cw, y: (e.clientY - oy) / ch };
+  }
+  /* Bedienelemente wachsen mit der Fensterbreite: 1920 Punkte = 20px; Schlafzimmer (960 Punkte bei Pixelfaktor 2) halb so groß */
+  var K = 1;
+  function scaleUi() {
+    K = Math.max(0.5, Math.min(1, (window.innerWidth || 1920) / 1920));
+    document.documentElement.style.fontSize = (20 * K).toFixed(2) + 'px';
+  }
+  scaleUi();
+  window.addEventListener('resize', scaleUi);
+  /* Leiste am oberen Rand (Home Assistant, Ziele wie Loxone, Zurück, Neu laden) – erscheint, wenn der Zeiger an den oberen Rand kommt.
+     Der Punkt zeigt die passende Farbtaste der Fernbedienung. */
+  var bar = document.getElementById('bar'), barTimer = null;
+  var DOT = { loxone: '#69c350' };
+  var BTN = [['home', 'Home Assistant', '#2f86eb']];
+  (CFG.links || []).forEach(function (l) { BTN.push(['link:' + l, l.charAt(0).toUpperCase() + l.substring(1), DOT[l] || '']); });
+  BTN.push(['back', 'Zurück', '#e5484d'], ['reload', 'Neu laden', '#f2c94c']);
+  function showBar(ms) {
+    bar.className = 'on';
+    if (barTimer) { clearTimeout(barTimer); }
+    barTimer = setTimeout(function () { bar.className = ''; barTimer = null; }, ms || 3000);
+  }
+  BTN.forEach(function (b) {
+    var el = document.createElement('button'), dot;
+    if (b[2]) { dot = document.createElement('i'); dot.style.background = b[2]; el.appendChild(dot); }
+    el.appendChild(document.createTextNode(b[1]));
+    el.addEventListener('click', function () { send({ t: 'c', c: b[0] }); showBar(1500); });
+    bar.appendChild(el);
+  });
+  function inBar(e) { return bar.className === 'on' && bar.contains(e.target); }
+  /* Hinweis des Streamers (.30) unten im Bild, z. B. „Schon auf der Startseite“ */
+  var hw = document.getElementById('hw'), hwT = null;
+  function hint(t) {
+    if (!t) { return; }
+    hw.textContent = t; hw.className = 'on'; mark('hinweis ' + t.substring(0, 40));
+    if (hwT) { clearTimeout(hwT); }
+    hwT = setTimeout(function () { hw.className = ''; hwT = null; }, 2800);
+  }
+  function nearBar(e) {
+    var r = bar.getBoundingClientRect(), m = 30 * K;
+    return e.clientY < 20 * K || (e.clientX > r.left - m && e.clientX < r.right + m && e.clientY < r.bottom + m);
+  }
+  showBar(4000);
+
+  /* Zeigerbewegungen: die erste sofort, danach höchstens alle 25 ms die jeweils letzte – nach Zeit, nicht per
+     requestAnimationFrame: das zeichnet im Schlafzimmer mit dem 1920er-Bild 0×/s, dann kamen Überfahren und Ziehen
+     (Schieberegler) gar nicht mehr an, nur Klicks */
+  var pend = null, waiting = false, lastDown = 0;
+  function flushMove() {
+    waiting = false;
+    if (pend) { send({ t: 'm', x: pend.x, y: pend.y }); pend = null; waiting = true; setTimeout(flushMove, 25); }
+  }
+  document.addEventListener('mousemove', function (e) {
+    if (nearBar(e)) { showBar(3000); }
+    if (inBar(e) || inKb(e)) { return; }
+    pend = rel(e);
+    if (!waiting) { flushMove(); }
+  });
+  document.addEventListener('mousedown', function (e) {
+    tonAn();
+    if (inBar(e) || inKb(e)) { return; }
+    var p = rel(e);
+    pend = null;
+    lastDown = Date.now();
+    send({ t: 'm', x: p.x, y: p.y });
+    send({ t: 'd', x: p.x, y: p.y, b: e.button });
+    e.preventDefault();
+  });
+  document.addEventListener('mouseup', function (e) { if (inBar(e) || inKb(e)) { return; } var p = rel(e); send({ t: 'u', x: p.x, y: p.y, b: e.button }); e.preventDefault(); });
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  document.addEventListener('wheel', function (e) {
+    if (inBar(e) || inKb(e)) { return; }
+    var p = rel(e), k = e.deltaMode === 1 ? 40 : (e.deltaMode === 2 ? 800 : 1);
+    send({ t: 'w', x: p.x, y: p.y, dx: e.deltaX * k, dy: e.deltaY * k });
+    e.preventDefault();
+  }, { passive: false });
+
+  /* ---------- Eingabefeld für Textfelder im Chromium (.27) ---------- */
+  var kb = document.getElementById('kb'), kbt = document.getElementById('kbt'), kbi = document.getElementById('kbi');
+  var KB_USE = TV || ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;   /* am PC tippt die Tastatur direkt */
+  var kbOpen = false, kbLast = '';
+  function kbHide() { kbOpen = false; kb.className = ''; try { kbi.blur(); } catch (x) {} }
+  function kbShow(m) {
+    if (!KB_USE) { return; }
+    if (!m.an) { if (kbOpen) { mark('textfeld zu'); } kbHide(); return; }
+    var pw = m.typ === 'password';
+    try { kbi.type = pw ? 'password' : 'text'; } catch (x) {}
+    kbi.setAttribute('inputmode', m.typ === 'number' ? 'numeric' : 'text');
+    kbi.placeholder = 'Hier klicken und tippen';
+    kbt.textContent = (m.titel || 'Eingabe') + (pw && String(m.titel || '').toLowerCase().indexOf('passw') < 0 ? ' (Passwort)' : '');
+    kbi.value = pw ? '' : (m.wert || '');
+    kbLast = kbi.value;
+    kbOpen = true;
+    kb.className = 'on';
+    /* Fokus nur nach eigenem Klick (bis 2 s davor) – setzt die Seite ihn selbst, bleiben die Tasten bei der VM (.28) */
+    var selbst = Date.now() - lastDown < 2000;
+    mark('textfeld auf' + (m.typ ? ' ' + m.typ : '') + (selbst ? '' : ' (ohne fokus)'));
+    if (selbst) { try { kbi.focus(); } catch (x) {} }
+  }
+  function kbKey(name, vk) { send({ t: 'k', d: 1, key: name, code: name, vk: vk, text: vk === 13 ? String.fromCharCode(13) : '', mod: 0 });
+    send({ t: 'k', d: 0, key: name, code: name, vk: vk, text: '', mod: 0 }); }
+  /* Unterschied zum letzten Stand als echte Eingabe: anhängen per insertText, kürzen per Rücktaste, sonst alles neu */
+  function kbSync() {
+    var v = kbi.value, o = kbLast, i;
+    if (v === o) { return; }
+    if (v.indexOf(o) === 0) { send({ t: 'txt', s: v.substring(o.length) }); }
+    else if (o.indexOf(v) === 0) { for (i = 0; i < o.length - v.length; i++) { kbKey('Backspace', 8); } }
+    else { for (i = 0; i < o.length; i++) { kbKey('Backspace', 8); } if (v) { send({ t: 'txt', s: v }); } }
+    kbLast = v;
+  }
+  function kbEnter() { kbSync(); kbKey('Enter', 13); kbHide(); }
+  kbi.addEventListener('input', kbSync);
+  kbi.addEventListener('keydown', function (e) {
+    var kc = e.keyCode || e.which;
+    if (kc === 13) { e.preventDefault(); kbEnter(); }
+    else if (kc === 27 || kc === 461) { e.preventDefault(); backAt = Date.now(); kbHide(); }   /* nur schließen, nicht zurück */
+  });
+  document.getElementById('kbok').addEventListener('click', kbEnter);
+  document.getElementById('kbx').addEventListener('click', kbHide);
+  function inKb(e) { return kbOpen && kb.contains(e.target); }
+
+  var KEYS = { 8: 'Backspace', 9: 'Tab', 13: 'Enter', 27: 'Escape', 32: ' ', 35: 'End', 36: 'Home', 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown', 46: 'Delete' };
+  /* Fernbedienung: Zurück; Farbtasten wie die Systeme – blau Home Assistant, grün Loxone, gelb neu laden, rot zurück
+     (Test 23.10.: „Home Assistant ist immer blau, Loxone immer grün“); Kanal +/- = Zoom */
+  var REMOTE = { 461: 'back', 403: 'back', 404: 'link:loxone', 405: 'reload', 406: 'home' };
+  if (TV) { REMOTE[33] = 'zoomin'; REMOTE[34] = 'zoomout'; }
+  var backAt = 0;
+  function key(e, down) {
+    var kc = e.keyCode || e.which, k = e.key, text = '', mod, shortcut = e.metaKey || (e.ctrlKey && !e.altKey);
+    if (e.target === kbi) {   /* tippt ins eigene Eingabefeld – nicht an die VM (Enter/Zurück dort); Farbtasten wirken trotzdem */
+      if (kc >= 403 && kc <= 406) {
+        if (down) { kbHide(); mark('taste ' + kc + ' → ' + REMOTE[kc]); if (REMOTE[kc] === 'back') { backAt = Date.now(); } send({ t: 'c', c: REMOTE[kc] }); }
+        return true;
+      }
+      return false;
+    }
+    /* Tastencode in den Verlauf – nur Tasten ohne Schriftzeichen, nie Getipptes */
+    if (down && !(k && k.length === 1) && !(kc >= 48 && kc <= 90) && !(kc >= 96 && kc <= 111) && kc !== 32) {
+      mark('taste ' + kc + (k ? ' ' + String(k).substring(0, 16) : '') + (REMOTE[kc] ? ' → ' + REMOTE[kc] : ''));
+    }
+    if (REMOTE[kc]) { if (down) { if (REMOTE[kc] === 'back') { backAt = Date.now(); } send({ t: 'c', c: REMOTE[kc] }); } return true; }
+    if (e.altKey && !e.ctrlKey && !e.metaKey && (kc === 36 || kc === 37 || kc === 39)) {   /* Alt+Pos1 / Alt+← / Alt+→ wie im Browser */
+      if (down) { if (kc === 37) { backAt = Date.now(); } send({ t: 'c', c: kc === 36 ? 'home' : (kc === 37 ? 'back' : 'forward') }); }
+      return true;
+    }
+    if (shortcut && (k === 'v' || k === 'V')) { return false; }   /* Einfügen übernimmt der Browser, siehe „paste“ */
+    if (KEYS[kc]) { k = KEYS[kc]; text = kc === 13 ? String.fromCharCode(13) : (kc === 32 ? ' ' : ''); }
+    else if (k && k.length === 1) { text = k; }
+    else { return false; }
+    mod = (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.metaKey ? 4 : 0) | (e.shiftKey ? 8 : 0);
+    if (shortcut) { text = ''; }
+    else if (text && !KEYS[kc]) { mod = mod & 8; }   /* Zeichen über AltGr bzw. Option (@ € { } …) direkt eintippen */
+    else if (mod & 7) { text = ''; }
+    send({ t: 'k', d: down ? 1 : 0, key: k, code: e.code || '', vk: kc, text: text, mod: mod });
+    return true;
+  }
+  document.addEventListener('keydown', function (e) { tonAn(); if (key(e, true)) { e.preventDefault(); } });
+  document.addEventListener('keyup', function (e) { if (key(e, false)) { e.preventDefault(); } });
+  /* Strg/Cmd+V am PC: Text aus der Zwischenablage des PCs eintippen (z. B. Passwort aus dem Passwort-Manager) */
+  document.addEventListener('paste', function (e) {
+    if (kbOpen && e.target === kbi) { return; }        /* ins eigene Feld – geht über „input“ weiter */
+    var s = '';
+    try { s = (e.clipboardData || window.clipboardData).getData('text'); } catch (x) {}
+    if (s) { send({ t: 'txt', s: s }); }
+    e.preventDefault();
+  });
+  /* Zurück-Taste, falls der Fernseher sie als Browser-Zurück auslöst: eigenen Verlaufseintrag halten */
+  try { history.pushState({ tv: 1 }, '', location.href); } catch (e) {}
+  window.addEventListener('popstate', function () {
+    mark('popstate' + (Date.now() - backAt > 500 ? ' → back' : ''));
+    if (Date.now() - backAt > 500) { send({ t: 'c', c: 'back' }); }
+    try { history.pushState({ tv: 1 }, '', location.href); } catch (e) {}
+  });
+
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { if (!vws) { connectVideo(); } if (!iws) { connectInput(); } } });
+  /* Beim Verlassen/Neuladen die WebRTC-Verbindung ausdrücklich schließen und das Video lösen – der Fernseher soll seinen
+     Dekoder sofort freigeben (Verdacht 23.10.: nach mehrfachem Neuladen dekodierte das Wohnzimmer nur noch 7 Bilder/s) */
+  function leave() { try { v.srcObject = null; } catch (e) {} closeRtc(); }
+  window.addEventListener('pagehide', leave);
+  window.addEventListener('beforeunload', leave);
+  connectInput();
+  connectVideo();
+  if (START_MSE && !rtcRetryTimer) {
+    rtcRetryTimer = setTimeout(function () {
+      rtcRetryTimer = null;
+      if (MODE !== 'mse') { return; }
+      mark('webrtc nach neuer fassung'); MODE = 'webrtc'; quick = true; why = '';
+      try { if (vws) { vws.close(); } else { connectVideo(); } } catch (e) {}
+    }, 60000);
+  }
+})();
+</script>
+</body>
+</html>

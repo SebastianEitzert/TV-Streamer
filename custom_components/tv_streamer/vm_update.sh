@@ -45,10 +45,7 @@ EOF
   systemctl daemon-reload
   systemctl enable --now tv-streamer-config.timer
   rm -f "$DIR/.config-version"
-  echo "Installed – configuration is now fetched from $HA_URL every 5 minutes."
-  if [ ! -f "$DIR/Dockerfile" ] && ! docker image inspect "$(grep -m1 'image:' "$DIR/docker-compose.yml" 2>/dev/null | awk '{print $2}')" >/dev/null 2>&1; then
-    echo "Note: no Dockerfile in $DIR – the streamer image must be built first (see the README of the TV Streamer repository)."
-  fi
+  echo "Installed – configuration and streamer image are now fetched from $HA_URL every 5 minutes."
 fi
 
 NEW=$(get version) || { echo "Home Assistant not reachable or token rejected"; exit 0; }
@@ -57,6 +54,22 @@ OLD=$(cat "$DIR/.config-version" 2>/dev/null || true)
 [ "$NEW" = "$OLD" ] && exit 0
 echo "new configuration $NEW (was: ${OLD:-none})"
 cd "$DIR"
+
+# Streamer image files (Dockerfile, server.py, …) – checked against the manifest before anything is replaced
+rm -rf .neu && mkdir .neu
+get files > .neu/MANIFEST
+while read -r sum name; do
+  case "$name" in ""|*/*|.*) echo "invalid file name in manifest: $name"; exit 1 ;; esac
+  get "files/$name" > ".neu/$name"
+done < .neu/MANIFEST
+(cd .neu && sha256sum -c --quiet MANIFEST) || { echo "checksum mismatch – keeping the running version"; exit 1; }
+while read -r sum name; do mv ".neu/$name" "$name"; done < .neu/MANIFEST
+rm -rf .neu
+# The files used to come from Home Assistant's www folder – that older update timer would overwrite them again.
+if systemctl is-enabled tv-streamer-update.timer >/dev/null 2>&1; then
+  systemctl disable --now tv-streamer-update.timer && echo "disabled the old update timer tv-streamer-update.timer"
+fi
+
 get docker-compose.yml > docker-compose.yml.neu
 docker compose -f docker-compose.yml.neu config -q
 [ -f docker-compose.yml ] && cp docker-compose.yml docker-compose.yml.bak

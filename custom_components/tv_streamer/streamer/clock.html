@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Uhr – Verzögerungstest</title>
+<!-- KI generiert (Claude, 21.10.2026): Testseite für den TV-Streamer. Läuft im Chromium auf der VM.
+     Die große Uhr zeigt die Zeit der VM; mit ?uhr=1 zeigt die Empfangsseite unten rechts die Zeit des Fernsehers.
+     Ein Foto vom Fernseher zeigt so die Verzögerung. Die Fläche unten testet Zeiger, Klick und Rad.
+     23.10. 19:44: nur diese Zeile geändert – erzwingt einen Neustart der Container (Test der Empfangsseite .22). -->
+<style>
+  html, body { margin: 0; height: 100%; background: #10182c; color: #eef2fb; font-family: Roboto, Arial, sans-serif; overflow: hidden; }
+  #t { position: absolute; left: 0; right: 0; top: 14%; text-align: center; font: 700 120px/1 monospace; color: #ffd59a; }
+  #bar { position: absolute; top: 40%; left: 0; width: 60px; height: 40px; border-radius: 8px; background: #5fe3b5; }
+  #pad { position: absolute; left: 10%; right: 10%; top: 55%; height: 30%; border-radius: 22px; background: #1d2a4a;
+         display: flex; align-items: center; justify-content: center; font-size: 34px; transition: background .15s; cursor: pointer; }
+  #pad:hover { background: #2c4378; }
+  #pad.on { background: #8f5cff; }
+  /* 23.10.: Zeitcode oben links – 16 Felder, Gray-Code der Uhrzeit in 10 ms. Eine Messseite liest ihn aus dem Video
+     und kennt so die echte Verzögerung (nur wenn Sender und Empfänger dieselbe Uhr haben, z. B. Test auf der VM). */
+  #code { position: absolute; left: 8px; top: 8px; height: 24px; white-space: nowrap; font-size: 0; }
+  #code i { display: inline-block; width: 24px; height: 24px; background: #000; }
+</style>
+</head>
+<body>
+<div id="code"></div>
+<div id="t"></div>
+<div id="bar"></div>
+<div id="pad">Klick-Fläche: 0 Klicks · Rad 0</div>
+<script>
+(function () {
+  var t = document.getElementById('t'), bar = document.getElementById('bar'), pad = document.getElementById('pad');
+  var clicks = 0, wheel = 0, code = document.getElementById('code'), bits = [], i;
+  for (i = 0; i < 16; i++) { bits.push(code.appendChild(document.createElement('i'))); }
+  function two(n, l) { n = String(n); while (n.length < (l || 2)) { n = '0' + n; } return n; }
+  (function loop() {
+    var d = new Date(), c = Math.floor(d.getTime() / 10) & 0xFFFF, g = c ^ (c >> 1), k;
+    for (k = 0; k < 16; k++) { bits[k].style.background = (g >> (15 - k)) & 1 ? '#fff' : '#000'; }
+    t.textContent = two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()) + '.' + two(d.getMilliseconds(), 3);
+    bar.style.transform = 'translateX(' + Math.round(((d.getTime() % 2000) / 2000) * (window.innerWidth - 60)) + 'px)';
+    requestAnimationFrame(loop);
+  })();
+  function show() { pad.textContent = 'Klick-Fläche: ' + clicks + ' Klicks · Rad ' + wheel; }
+  pad.addEventListener('click', function () { clicks += 1; pad.classList.toggle('on'); show(); });
+  pad.addEventListener('wheel', function (e) { wheel += e.deltaY > 0 ? 1 : -1; show(); e.preventDefault(); });
+  window.__testState = function () { return { clicks: clicks, wheel: wheel }; };
+})();
+</script>
+</body>
+</html>

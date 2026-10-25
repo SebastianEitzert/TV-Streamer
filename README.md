@@ -11,7 +11,7 @@ Show Home Assistant dashboards on TVs, served from a small VM: one Chromium per 
 |---|---|
 | `custom_components/tv_streamer` – Home Assistant integration (setup in the UI, devices, sensors, LG developer mode renewal, config endpoint for the VM) | **0.1** |
 | `vm/proxmox-vm.sh` – creates the VM on Proxmox VE | **0.1** |
-| VM image (Docker: `server.py`, Chromium, Sunshine) | planned – see the note in step 3 |
+| `custom_components/tv_streamer/streamer` – streamer image (Docker: `server.py`, Chromium, encoders, Sunshine), delivered to the VM by the integration | **0.3** |
 | Floor plan Lovelace card (HACS) | planned |
 | Patched Moonlight for LG webOS (`.ipk`, GPL-3.0) | planned |
 
@@ -48,11 +48,11 @@ downloads the Debian 13 cloud image (checksum verified), creates the VM and inst
 
 Give the VM a **fixed IP address** (in the script or as a DHCP reservation in your router) – TVs and Moonlight connect to it.
 
-### 3. Put the streamer image on the VM
+### 3. Nothing to copy to the VM
 
-> **Note:** the streamer image (`Dockerfile`, `server.py`, `client.html`, Sunshine) will be published in this repository
-> under `vm/` in the next release. Until then this step only works if you already have these files in `/opt/tv-streamer`
-> on the VM. The integration builds the image from that folder (`docker compose up --build`).
+The streamer image (`Dockerfile`, `server.py`, `client.html`, Chromium policies, Sunshine) ships **with the integration**.
+In step 7 the VM fetches it from Home Assistant together with its configuration and builds it locally – the first build
+takes about 10 minutes. After every integration update the VM rebuilds automatically, so both always match.
 
 ### 4. Install the integration
 
@@ -98,7 +98,8 @@ Ports per streamer slot *n* (0, 1, …): web page `8091+n`, WebRTC `8555+n`, Sun
 qm guest exec <VMID> --timeout 600 -- sh -c "<command from VM setup>"
 ```
 
-It installs the timer `tv-streamer-config.timer`, fetches the generated `docker-compose.yml` and starts the containers.
+It installs the timer `tv-streamer-config.timer`, fetches the streamer image files (checked against SHA-256 checksums)
+and the generated `docker-compose.yml`, builds the image and starts the containers.
 From now on every change in the integration options reaches the VM within 5 minutes.
 Check: `journalctl -u tv-streamer-config` and `docker compose ps` in `/opt/tv-streamer`.
 

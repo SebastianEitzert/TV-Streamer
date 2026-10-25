@@ -25,6 +25,9 @@ Das alte `update.sh` lädt `docker-compose.yml` aus `www/tv-streamer` neu, sobal
 des neuen Timers `docker-compose.yml` aus der Dateiliste in `www/tv-streamer/bootstrap.sh` entfernen (Schleife `for f in server.py …`).
 `server.py`, `client.html` usw. kommen weiter von dort, bis das VM-Image Teil dieses Repositorys ist.
 
+> Seit Fassung 0.3 liefert die Integration auch die Dateien des Streamer-Images und schaltet den alten
+> `tv-streamer-update.timer` auf der VM beim ersten Update selbst ab.
+
 ## 3. Auf der VM einrichten
 
 Den Befehl aus *Optionen → VM-Einrichtung* als root auf der VM ausführen. Prüfen mit `journalctl -u tv-streamer-config` und

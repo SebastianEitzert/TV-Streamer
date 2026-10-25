@@ -92,6 +92,8 @@ API_BASE: Final = "/api/tv_streamer"
 API_VERSION: Final = API_BASE + "/{entry_id}/version"
 API_COMPOSE: Final = API_BASE + "/{entry_id}/docker-compose.yml"
 API_UPDATE_SCRIPT: Final = API_BASE + "/{entry_id}/update.sh"
+API_FILES: Final = API_BASE + "/{entry_id}/files"
+API_FILE: Final = API_BASE + "/{entry_id}/files/{name}"
 
 SCAN_INTERVAL_SECONDS: Final = 60
 SIGNAL_PUSH: Final = DOMAIN + "_push_{}"

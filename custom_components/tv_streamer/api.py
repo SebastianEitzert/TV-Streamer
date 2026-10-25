@@ -16,6 +16,8 @@ from homeassistant.core import HomeAssistant
 
 from .const import (
     API_COMPOSE,
+    API_FILE,
+    API_FILES,
     API_UPDATE_SCRIPT,
     API_VERSION,
     CONF_HA_URL,
@@ -86,10 +88,35 @@ class UpdateScriptView(_VmView):
         return web.Response(text=script, content_type="text/x-shellscript", headers={"Cache-Control": "no-store"})
 
 
+class FilesView(_VmView):
+    """Manifest of the streamer image files (`sha256  name` per line)."""
+
+    url = API_FILES
+    name = "api:tv_streamer:files"
+
+    async def get(self, request: web.Request, entry_id: str) -> web.Response:
+        entry = _entry(self.hass, request, entry_id)
+        return web.Response(text=entry.runtime_data.files_manifest, headers={"Cache-Control": "no-store"})
+
+
+class FileView(_VmView):
+    """One file of the streamer image."""
+
+    url = API_FILE
+    name = "api:tv_streamer:file"
+
+    async def get(self, request: web.Request, entry_id: str, name: str) -> web.Response:
+        entry = _entry(self.hass, request, entry_id)
+        data = entry.runtime_data.files.get(name)
+        if data is None:
+            raise web.HTTPNotFound
+        return web.Response(body=data, content_type="application/octet-stream", headers={"Cache-Control": "no-store"})
+
+
 def async_register_views(hass: HomeAssistant) -> None:
     """Register the views once per Home Assistant run."""
     if hass.data.get(f"{DOMAIN}_views"):
         return
     hass.data[f"{DOMAIN}_views"] = True
-    for view in (VersionView(hass), ComposeView(hass), UpdateScriptView(hass)):
+    for view in (VersionView(hass), ComposeView(hass), UpdateScriptView(hass), FilesView(hass), FileView(hass)):
         hass.http.register_view(view)

@@ -80,6 +80,13 @@ async def test_setup_endpoints_webhook(hass: HomeAssistant, entry, aioclient_moc
     assert version == entry.runtime_data.compose_version
     compose = yaml.safe_load(await (await client.get(f"{base}/docker-compose.yml", headers=auth)).text())
     assert compose["services"]["bedroom"]["environment"]["HA_WEBHOOK"] == "http://192.168.1.10:8123/api/webhook/hook123"
+    manifest = await (await client.get(f"{base}/files", headers=auth)).text()
+    names = [line.split("  ")[1] for line in manifest.splitlines()]
+    assert names == ["Dockerfile", "server.py", "client.html", "clock.html"]
+    server = await (await client.get(f"{base}/files/server.py", headers=auth)).read()
+    assert server.startswith(b"#!/usr/bin/env python3") and b"192.168.0.4" not in server
+    assert (await client.get(f"{base}/files/../manifest.json", headers=auth)).status == HTTPStatus.NOT_FOUND
+    assert (await client.get(f"{base}/files/server.py")).status == HTTPStatus.UNAUTHORIZED
     script = await (await client.get(f"{base}/update.sh", headers=auth)).text()
     assert 'HA_TOKEN="vm-secret"' in script and f'ENTRY_ID="{entry.entry_id}"' in script
 

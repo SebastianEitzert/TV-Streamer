@@ -142,5 +142,7 @@ class TvStreamerData:
     """Stored in entry.runtime_data."""
 
     compose_text: str
-    compose_version: str
+    compose_version: str  # changes with the compose file and with the streamer files
+    files: dict[str, bytes] = field(default_factory=dict)
+    files_manifest: str = ""
     coordinators: dict[str, StreamerCoordinator] = field(default_factory=dict)

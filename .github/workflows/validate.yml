@@ -30,3 +30,20 @@ jobs:
           python-version: "3.13"
       - run: pip install -r requirements_test.txt
       - run: pytest -q
+
+  streamer-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m py_compile custom_components/tv_streamer/streamer/server.py
+      - run: docker build -t tv-streamer:ci custom_components/tv_streamer/streamer
+      - name: Smoke test
+        run: |
+          docker run -d --name tv -e WIDTH=1280 -e HEIGHT=720 -e ZOOM=1 tv-streamer:ci
+          for i in $(seq 1 30); do
+            if docker exec tv python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/api/status', timeout=3)"; then
+              echo "streamer answers"; docker logs tv | tail -20; exit 0
+            fi
+            sleep 2
+          done
+          docker logs tv; exit 1

@@ -26,6 +26,7 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import StreamerCoordinator, TvStreamerData
+from .streamer_files import files_manifest, load_streamer_files
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +39,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: TvStreamerConfigEntry) -
     """Set up the streamers of one VM."""
     webhook_url = entry.data[CONF_HA_URL].rstrip("/") + webhook.async_generate_path(entry.data[CONF_WEBHOOK_ID])
     compose_text = render_compose(entry.data, dict(entry.options), webhook_url)
-    data = TvStreamerData(compose_text=compose_text, compose_version=compose_version(compose_text))
+    files = await hass.async_add_executor_job(load_streamer_files)
+    manifest = files_manifest(files)
+    data = TvStreamerData(
+        compose_text=compose_text,
+        compose_version=compose_version(compose_text + manifest),
+        files=files,
+        files_manifest=manifest,
+    )
 
     for streamer in entry.options.get(CONF_STREAMERS, []):
         coordinator = StreamerCoordinator(hass, entry, streamer)
