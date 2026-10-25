@@ -14,6 +14,8 @@ All notable changes to this project. Versions follow the `version` in `custom_co
 - Moonlight build: Play/Pause and Stop are sent as F15/F16 (Sunshine on Linux drops media keys); the app is called
   "Moonlight TVS" so the patched build is easy to recognise. The streamer recognises the keys by key code.
 - Options: new "Edit extra tab" (address, remember login, never reload); tab names show capitalised in button names.
+- VM update script: also switches off the old `tv-streamer-update.timer` when it is only running (not enabled) – it kept
+  copying old streamer files over the new ones. The script now keeps itself up to date.
 - Jarvis-style automations can use the "Show on TV" buttons instead of scripts.
 
 ## 0.3.1

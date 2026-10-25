@@ -55,6 +55,21 @@ OLD=$(cat "$DIR/.config-version" 2>/dev/null || true)
 echo "new configuration $NEW (was: ${OLD:-none})"
 cd "$DIR"
 
+# The files used to come from Home Assistant's www folder – that older update timer would overwrite them again.
+# Checked before anything is fetched; "active" counts too (a timer started by hand is not "enabled").
+if systemctl is-enabled tv-streamer-update.timer >/dev/null 2>&1 || systemctl is-active tv-streamer-update.timer >/dev/null 2>&1; then
+  systemctl disable --now tv-streamer-update.timer >/dev/null 2>&1 || true
+  systemctl stop tv-streamer-update.service >/dev/null 2>&1 || true
+  echo "disabled the old update timer tv-streamer-update.timer"
+fi
+
+# Keep this script itself up to date (it is only installed once).
+if get update.sh > config-update.sh.neu && [ -s config-update.sh.neu ]; then
+  chmod 700 config-update.sh.neu && mv config-update.sh.neu config-update.sh
+else
+  rm -f config-update.sh.neu
+fi
+
 # Streamer image files (Dockerfile, server.py, …) – checked against the manifest before anything is replaced
 rm -rf .neu && mkdir .neu
 get files > .neu/MANIFEST
@@ -65,11 +80,6 @@ done < .neu/MANIFEST
 (cd .neu && sha256sum -c --quiet MANIFEST) || { echo "checksum mismatch – keeping the running version"; exit 1; }
 while read -r sum name; do mv ".neu/$name" "$name"; done < .neu/MANIFEST
 rm -rf .neu
-# The files used to come from Home Assistant's www folder – that older update timer would overwrite them again.
-if systemctl is-enabled tv-streamer-update.timer >/dev/null 2>&1; then
-  systemctl disable --now tv-streamer-update.timer && echo "disabled the old update timer tv-streamer-update.timer"
-fi
-
 get docker-compose.yml > docker-compose.yml.neu
 docker compose -f docker-compose.yml.neu config -q
 [ -f docker-compose.yml ] && cp docker-compose.yml docker-compose.yml.bak
