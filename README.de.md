@@ -14,11 +14,11 @@ Dashboard, als hinge ein PC am Fernseher.
 
 | Teil | Stand |
 |---|---|
-| `custom_components/tv_streamer` – Home-Assistant-Integration (Einrichtung in der Oberfläche, Geräte, Sensoren, Verlängerung des LG-Developer-Modus, Konfig-Endpunkt für die VM) | **0.1** |
+| `custom_components/tv_streamer` – Home-Assistant-Integration (Einrichtung in der Oberfläche, Geräte, Sensoren, Ereignisse der Fernbedienung, Verlängerung des LG-Developer-Modus, Konfig-Endpunkt für die VM), über HACS installierbar | **0.4** |
 | `vm/proxmox-vm.sh` – legt die VM in Proxmox VE an | **0.1** |
-| `custom_components/tv_streamer/streamer` – Streamer-Image (Docker: `server.py`, Chromium, Kodierer, Sunshine), liefert die Integration an die VM | **0.3** |
+| `custom_components/tv_streamer/streamer` – Streamer-Image (Docker: `server.py`, Chromium, Kodierer, Sunshine), liefert die Integration an die VM | **0.4** |
 | Grundriss-Karte für Lovelace (HACS) | geplant |
-| `moonlight/` – angepasstes Moonlight für LG webOS (`.ipk`, GPL-3.0) | **erste Fassung** |
+| `moonlight/` – angepasstes Moonlight für LG webOS (`.ipk`, GPL-3.0) | **im Test** |
 
 ## Anleitung
 
@@ -131,10 +131,27 @@ Home Assistant kopieren, z. B. mit der App *Samba share* oder *File editor* → 
    | andere | 1920×1080 | 1,25 | MSE |
 
    Bei LG-Fernsehern mit Moonlight zusätzlich das **Developer-Mode-Session-Token** eintragen (siehe Schritt 9).
+
+   **Welcher Bildweg?** Alle drei zeigen dieselbe Chromium-Seite der VM; sie unterscheiden sich darin, wie das Bild zum Fernseher kommt:
+
+   | | MSE | WebRTC | Moonlight |
+   |---|---|---|---|
+   | Am Fernseher | Webbrowser (jeder Fernseher) | Webbrowser mit WebRTC | Moonlight-App (LG: Entwicklermodus) |
+   | Verzögerung | spürbar – der Fernseher-Browser puffert etwa 0,5 s | deutlich weniger als MSE (kein Puffer) | am geringsten – fürs Spiele-Streaming gebaut, in unseren Tests die schnellste Reaktion |
+   | Bild | scharf, Hardware-Decoder des Fernsehers | scharf | scharf, Hardware-Decoder des Fernsehers |
+   | Ton | ja | ja | ja |
+   | Fernbedienung | Zeiger und Tasten des Browsers | Zeiger und Tasten des Browsers | Zeiger der Magic Remote; mit der [TV-Streamer-Fassung](moonlight/README.md) auch Farb- und Wiedergabetasten |
+   | Einrichtung | nur die Adresse öffnen | nur die Adresse öffnen | Entwicklermodus, App installieren, einmal koppeln, Sitzung verlängern (automatisch) |
+   | Sensoren in HA | Verzögerung, Bildrate, Datenrate | Verzögerung, Bildrate, Datenrate | – (Sunshine meldet keine) |
+   | Grenzen | Verzögerung beim Klicken und Zeigen | webOS 4 (z. B. UK7550): 4:3, friert ein oder bleibt schwarz | LG-Entwicklermodus nötig; keine Messwerte |
+
+   Faustregel: **Moonlight**, wo der Fernseher es kann (LG webOS), **WebRTC** für andere Fernseher, deren Browser es kann,
+   **MSE** als Rückfall, der überall läuft. Die VM kodiert in Software (ohne Grafikkarte), daher 1080p/1440p – 4K ist zu viel.
 2. **Reiter hinzufügen** (optional; *Reiter bearbeiten* ändert später Adresse und Optionen) – z. B. Loxone oder die Router-Oberfläche: Name, Adresse (`192.168.1.160` genügt,
    `http://` wird ergänzt), *Anmeldung merken*, *nie neu laden*.
 3. **Allgemeine Einstellungen** – Startansicht (das Dashboard, das die Fernseher öffnen; ein Pfad wie `/dashboard-tv/home`
-   genügt), Ruhezeit, *zurück zur Startansicht nach*, Zeichen-Threads, Ton, Zeitzone.
+   genügt), Ruhezeit, *zurück zur Startansicht nach*, Zeichen-Threads, **grüne Taste** (erster zusätzlicher Reiter,
+   ein gewählter Reiter oder nichts), Ton, Zeitzone.
 
 Jeder Schritt wird gespeichert, sobald er bestätigt ist – einen eigenen Speichern-Knopf gibt es nicht.
 

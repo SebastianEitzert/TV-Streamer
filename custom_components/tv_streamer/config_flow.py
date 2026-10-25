@@ -27,6 +27,7 @@ from .const import (
     CONF_AUDIO,
     CONF_BITRATE,
     CONF_FREEZE_AFTER,
+    CONF_GREEN_TAB,
     CONF_HA_URL,
     CONF_HEIGHT,
     CONF_HOME_AFTER,
@@ -59,6 +60,8 @@ from .const import (
     DEFAULT_LG_RENEW_TIME,
     DEFAULT_RASTER_THREADS,
     DOMAIN,
+    GREEN_FIRST,
+    GREEN_NONE,
     LG_TV_TYPES,
     MAX_STREAMERS,
     TV_OTHER,
@@ -479,6 +482,20 @@ class TvStreamerOptionsFlow(OptionsFlow):
                     vol.Required(CONF_FREEZE_AFTER, default=o[CONF_FREEZE_AFTER]): _number(0, 3600, 1, "s"),
                     vol.Required(CONF_HOME_AFTER, default=o[CONF_HOME_AFTER]): _number(0, 3600, 1, "s"),
                     vol.Required(CONF_RASTER_THREADS, default=o[CONF_RASTER_THREADS]): _number(1, 4),
+                    vol.Required(CONF_GREEN_TAB, default=self._green_default()): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(value=GREEN_FIRST, label=GREEN_FIRST),
+                                selector.SelectOptionDict(value=GREEN_NONE, label=GREEN_NONE),
+                                *(
+                                    selector.SelectOptionDict(value=n, label=n.replace("_", " ").title())
+                                    for n in (link[CONF_NAME] for link in o[CONF_LINKS])
+                                ),
+                            ],
+                            translation_key=CONF_GREEN_TAB,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                     vol.Required(CONF_AUDIO, default=o[CONF_AUDIO]): selector.BooleanSelector(),
                     vol.Required(CONF_LG_RENEW_TIME, default=o[CONF_LG_RENEW_TIME]): selector.TimeSelector(),
                     vol.Required(CONF_IMAGE, default=o[CONF_IMAGE]): TEXT,
@@ -487,6 +504,11 @@ class TvStreamerOptionsFlow(OptionsFlow):
             ),
             errors=errors,
         )
+
+    def _green_default(self) -> str:
+        choice = self._options.get(CONF_GREEN_TAB, GREEN_FIRST)
+        names = [link[CONF_NAME] for link in self._options[CONF_LINKS]]
+        return choice if choice in (GREEN_FIRST, GREEN_NONE, *names) else GREEN_FIRST
 
     # VM setup ----------------------------------------------------------------------
 

@@ -2,6 +2,11 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.3 – 2026-10-26
+- General settings: **green key** – first extra tab (default, as before), a chosen tab or nothing (only the Home
+  Assistant event). Streamer 2026-10-26.42.
+- README: comparison of the video paths MSE, WebRTC and Moonlight (delay, setup, limits).
+
 ## 0.4.2 – 2026-10-26
 - Moonlight streamers no longer get the sensors latency, frame rate and data rate (they are measured by the receiving
   page in the TV browser, MSE/WebRTC only); existing ones are removed.

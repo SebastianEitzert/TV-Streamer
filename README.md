@@ -13,11 +13,11 @@ Show Home Assistant dashboards on TVs, served from a small VM: one Chromium per 
 
 | Part | Status |
 |---|---|
-| `custom_components/tv_streamer` – Home Assistant integration (setup in the UI, devices, sensors, LG developer mode renewal, config endpoint for the VM) | **0.1** |
+| `custom_components/tv_streamer` – Home Assistant integration (setup in the UI, devices, sensors, remote key events, LG developer mode renewal, config endpoint for the VM), installable with HACS | **0.4** |
 | `vm/proxmox-vm.sh` – creates the VM on Proxmox VE | **0.1** |
-| `custom_components/tv_streamer/streamer` – streamer image (Docker: `server.py`, Chromium, encoders, Sunshine), delivered to the VM by the integration | **0.3** |
+| `custom_components/tv_streamer/streamer` – streamer image (Docker: `server.py`, Chromium, encoders, Sunshine), delivered to the VM by the integration | **0.4** |
 | Floor plan Lovelace card (HACS) | planned |
-| `moonlight/` – patched Moonlight for LG webOS (`.ipk`, GPL-3.0) | **first build** |
+| `moonlight/` – patched Moonlight for LG webOS (`.ipk`, GPL-3.0) | **testing** |
 
 ## Setup guide
 
@@ -129,10 +129,26 @@ of Home Assistant, e.g. with the *Samba share* or *File editor* app → restart 
    | other | 1920×1080 | 1.25 | MSE |
 
    For LG TVs with Moonlight also paste the **developer mode session token** (see step 9).
+
+   **Which video path?** All three show the same Chromium page from the VM; they differ in how the picture gets to the TV:
+
+   | | MSE | WebRTC | Moonlight |
+   |---|---|---|---|
+   | On the TV | web browser (any TV) | web browser with WebRTC | Moonlight app (LG: developer mode) |
+   | Delay | noticeable – the TV browser buffers about 0.5 s | clearly less than MSE (no buffer) | lowest – made for game streaming, the fastest reaction in our tests |
+   | Picture | sharp, TV hardware decoder | sharp | sharp, TV hardware decoder |
+   | Sound | yes | yes | yes |
+   | Remote | browser pointer and keys | browser pointer and keys | Magic Remote pointer; with the [TV Streamer build](moonlight/README.md) also colour and play/pause keys |
+   | Setup | just open the address | just open the address | developer mode, install the app, pair once, renew the session (automatic) |
+   | Sensors in HA | latency, frame rate, data rate | latency, frame rate, data rate | – (Sunshine reports none) |
+   | Limits | delay when clicking and pointing | webOS 4 (e.g. UK7550): 4:3, freezes or stays black | LG developer mode needed; no measurement sensors |
+
+   Rule of thumb: **Moonlight** where the TV can run it (LG webOS), **WebRTC** for other TVs whose browser handles it,
+   **MSE** as the fallback that runs everywhere. The VM encodes in software (no graphics card), so 1080p/1440p – 4K is too much.
 2. **Add extra tab** (optional; later *Edit extra tab* changes address and options) – e.g. a Loxone or router web interface: name, address (`192.168.1.160` is enough,
    `http://` is added), *remember login*, *never reload*.
 3. **General settings** – start view (the dashboard the TVs open; a path like `/dashboard-tv/home` is enough), rest time,
-   *back to start view after*, raster threads, audio, time zone.
+   *back to start view after*, raster threads, **green key** (first extra tab, a chosen tab or nothing), audio, time zone.
 
 Every step is saved as soon as you confirm it – there is no separate save button.
 

@@ -12,6 +12,7 @@ from .const import (
     CONF_AUDIO,
     CONF_BITRATE,
     CONF_FREEZE_AFTER,
+    CONF_GREEN_TAB,
     CONF_HEIGHT,
     CONF_HOME_AFTER,
     CONF_HOST,
@@ -34,6 +35,8 @@ from .const import (
     DEFAULT_HOME_AFTER,
     DEFAULT_IMAGE,
     DEFAULT_RASTER_THREADS,
+    GREEN_FIRST,
+    GREEN_NONE,
     HTTP_PORT_BASE,
     SUNSHINE_PORT_BASE,
     SUNSHINE_PORT_STEP,
@@ -67,6 +70,17 @@ def sunshine_ports(base: int) -> list[str]:
     ]
 
 
+def green_tab(options: dict[str, Any]) -> str:
+    """Tab the green key opens ("" = none): the chosen tab, else the first extra tab."""
+    names = [link[CONF_NAME] for link in options.get(CONF_LINKS, [])]
+    choice = options.get(CONF_GREEN_TAB, GREEN_FIRST)
+    if choice == GREEN_NONE:
+        return ""
+    if choice in names:
+        return choice
+    return names[0] if names else ""
+
+
 def service_name(streamer: dict[str, Any]) -> str:
     """Docker service name: the streamer id (already a slug)."""
     return str(streamer[CONF_ID])
@@ -79,6 +93,7 @@ def build_compose(data: dict[str, Any], options: dict[str, Any], webhook_url: st
         "START_URL": options[CONF_START_URL],
         "LINKS": json.dumps({link[CONF_NAME]: link[CONF_URL] for link in links}, ensure_ascii=False),
         "KEIN_NEULADEN": ",".join(link[CONF_NAME] for link in links if link.get(CONF_NO_RELOAD)),
+        "GRUEN_REITER": green_tab(options),
         "ZUGANG_REITER": next((link[CONF_NAME] for link in links if link.get(CONF_REMEMBER_LOGIN)), ""),
         "FPS": "30",
         "FREEZE_AFTER_SECONDS": str(options.get(CONF_FREEZE_AFTER, DEFAULT_FREEZE_AFTER)),

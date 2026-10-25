@@ -9,7 +9,7 @@ small patches in [`patches/`](patches/) against the upstream release in [`UPSTRE
 | Remote key | Official Moonlight | This build | TV Streamer does |
 |---|---|---|---|
 | Blue | ignored while streaming | sends **F13** | show Home Assistant (already there: start page); HA event `tv_streamer_key` = `blue` |
-| Green | ignored while streaming | sends **F14** | show the first extra tab (e.g. Loxone); event `green` |
+| Green | ignored while streaming | sends **F14** | show the first extra tab (e.g. Loxone) – selectable in the general settings; event `green` |
 | Play | ignored | sends **F15** (Sunshine on Linux drops media keys) | event `play` (use it in an automation, e.g. start the music) |
 | Pause | ignored | sends **F17** | event `pause` |
 | Stop | ignored | sends **F16** | event `stop` |

@@ -23,6 +23,9 @@ CONF_AUDIO: Final = "audio"
 CONF_LG_RENEW_TIME: Final = "lg_renew_time"
 CONF_IMAGE: Final = "image"
 CONF_TIMEZONE: Final = "timezone"
+CONF_GREEN_TAB: Final = "green_tab"  # what the green key opens: "first" extra tab, "none" or a tab name
+GREEN_FIRST: Final = "first"
+GREEN_NONE: Final = "none"
 
 # Per streamer
 CONF_ID: Final = "id"

@@ -138,6 +138,7 @@
           "freeze_after": "Ruhen nach",
           "home_after": "Zurück zur Startansicht nach",
           "raster_threads": "Zeichen-Threads",
+          "green_tab": "Grüne Taste",
           "audio": "Ton",
           "lg_renew_time": "Tägliche LG-Verlängerung um",
           "image": "Docker-Image",
@@ -148,7 +149,8 @@
           "freeze_after": "Sekunden ohne Zuschauer, bis der Dashboard-Reiter ruht (leere Seite, spart CPU). 0 = nie.",
           "home_after": "Nach einer Moonlight-Pause von so vielen Sekunden beginnt der Stream wieder mit der Startansicht (wie Loxone nach 5 Minuten).",
           "raster_threads": "Chromium-Zeichen-Threads (1–4). 4 macht Pop-ups deutlich schneller.",
-          "image": "Image-Name für docker compose. Liegt ein Dockerfile in /opt/tv-streamer, wird das Image lokal gebaut."
+          "image": "Image-Name für docker compose. Liegt ein Dockerfile in /opt/tv-streamer, wird das Image lokal gebaut.",
+          "green_tab": "Was die grüne Taste der Fernbedienung öffnet (angepasstes Moonlight). Jede Taste wird zusätzlich als Ereignis an Home Assistant gemeldet."
         }
       },
       "vm_setup": {
@@ -181,6 +183,12 @@
         "mse": "MSE (Fernseher-Browser, am schärfsten)",
         "webrtc": "WebRTC (Fernseher-Browser, geringste Verzögerung)",
         "moonlight": "Moonlight / Sunshine (App auf dem Fernseher)"
+      }
+    },
+    "green_tab": {
+      "options": {
+        "first": "Erster zusätzlicher Reiter",
+        "none": "Nichts – nur an Home Assistant melden"
       }
     }
   },

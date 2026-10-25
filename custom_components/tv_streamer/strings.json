@@ -138,6 +138,7 @@
           "freeze_after": "Rest after",
           "home_after": "Back to start view after",
           "raster_threads": "Raster threads",
+          "green_tab": "Green key",
           "audio": "Audio",
           "lg_renew_time": "Daily LG renewal at",
           "image": "Docker image",
@@ -148,7 +149,8 @@
           "freeze_after": "Seconds without viewers until the dashboard tab rests (empty page, saves CPU). 0 = never.",
           "home_after": "After a Moonlight pause of this many seconds, the stream starts with the start view again (like Loxone after 5 minutes).",
           "raster_threads": "Chromium raster threads (1–4). 4 makes pop-ups noticeably faster.",
-          "image": "Image name used by docker compose. With a Dockerfile in /opt/tv-streamer the image is built locally."
+          "image": "Image name used by docker compose. With a Dockerfile in /opt/tv-streamer the image is built locally.",
+          "green_tab": "What the green remote key opens (patched Moonlight). Each key is also reported to Home Assistant as an event."
         }
       },
       "vm_setup": {
@@ -181,6 +183,12 @@
         "mse": "MSE (TV browser, sharpest)",
         "webrtc": "WebRTC (TV browser, lowest delay)",
         "moonlight": "Moonlight / Sunshine (app on the TV)"
+      }
+    },
+    "green_tab": {
+      "options": {
+        "first": "First extra tab",
+        "none": "Nothing – only report to Home Assistant"
       }
     }
   },

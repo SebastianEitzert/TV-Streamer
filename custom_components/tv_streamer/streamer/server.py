@@ -174,6 +174,7 @@ CFG = dict(
     hide_scrollbars=env("HIDE_SCROLLBARS", "1") == "1",  # keine Bildlaufleisten (am Fernseher scrollt das Rad)
     # Reiter, die nie neu geladen werden (Loxone meldet dabei ab); Reiter, dessen Anmeldung gemerkt und ausgefüllt wird
     kein_neuladen=[n.strip() for n in env("KEIN_NEULADEN", "").split(",") if n.strip()],
+    gruen=os.environ.get("GRUEN_REITER"),        # .42: Reiter der grünen Taste ("" = keiner; fehlt = erster zusätzlicher Reiter)
     zugang_reiter=env("ZUGANG_REITER", ""),
     ruhig=int(env("RUHIG", "0")),                # .35: 1 = weniger Bewegung, 2 = auch ohne Unschärfe/Animationen (Messung)
     moonlight=env("MOONLIGHT", "0") == "1",      # .37: Sunshine-Host für Moonlight auf dem Fernseher (zuerst nur Schlafzimmer)
@@ -218,7 +219,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-25.41"
+FASSUNG = "2026-10-26.42"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -1057,8 +1058,8 @@ class Cdp:
                         log.info("Moonlight: Taste %s", name)
                         if name == "blue":      # wie im Browser: Home Assistant, ist man dort schon: Startseite
                             asyncio.ensure_future(self.command("home"))
-                        elif name == "green" and CFG["links"]:    # erster zusätzlicher Reiter (z. B. Loxone)
-                            asyncio.ensure_future(self.command("link:" + next(iter(CFG["links"]))))
+                        elif name == "green" and gruen_reiter():   # .42: in der Integration wählbar (Standard: erster Reiter)
+                            asyncio.ensure_future(self.command("link:" + gruen_reiter()))
                         asyncio.ensure_future(ha_taste(name))   # jede Taste auch als Ereignis tv_streamer_key in HA
                     elif d.get("taste"):
                         log.info("Moonlight: Taste %s (%s)", str(d.get("taste"))[:24], str(d.get("code") or "")[:24])
@@ -2902,6 +2903,13 @@ async def status(request):
 
 # Tasten des angepassten Moonlight (Repo-Ordner moonlight/) → Namen des Ereignisses tv_streamer_key in Home Assistant
 FERNBEDIENUNG = {"F13": "blue", "F14": "green", "F15": "play", "F16": "stop", "F17": "pause", "MediaPlayPause": "play", "MediaStop": "stop"}
+
+
+def gruen_reiter():
+    """Reiter der grünen Taste: aus GRUEN_REITER ("" = keiner), ohne Angabe der erste zusätzliche Reiter."""
+    if CFG["gruen"] is None:
+        return next(iter(CFG["links"]), "")
+    return CFG["gruen"] if CFG["gruen"] in CFG["links"] else ""
 
 
 async def ha_taste(name):

@@ -54,6 +54,18 @@ def test_compose(hass: HomeAssistant, entry) -> None:
     assert compose["volumes"] == {"tv-bedroom": None, "tv-living_room": None}
 
 
+def test_green_tab(entry) -> None:
+    from custom_components.tv_streamer.compose import green_tab
+
+    options = dict(entry.options)
+    assert green_tab(options) == "loxone"  # default: first extra tab
+    assert green_tab({**options, "green_tab": "none"}) == ""
+    assert green_tab({**options, "green_tab": "router"}) == "loxone"  # removed tab → first again
+    options["links"] = [*options["links"], {"name": "router", "url": "http://192.168.1.1/"}]
+    assert green_tab({**options, "green_tab": "router"}) == "router"
+    assert green_tab({**options, "links": []}) == ""
+
+
 def test_token_from_input() -> None:
     assert token_from_input(f"{LG_RENEW_URL}?sessionToken=abc123") == "abc123"
     assert token_from_input(" abc123 ") == "abc123"
