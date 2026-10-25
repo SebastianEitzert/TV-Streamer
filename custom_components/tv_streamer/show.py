@@ -20,10 +20,11 @@ from .const import (
     CONF_VIDEO_PATH,
     CONF_WAKE,
     DOMAIN,
+    LAUNCH_RETRY,
+    LAUNCH_TIMEOUT,
     MOONLIGHT_APP,
     TV_OFF_STATES,
     VIDEO_MOONLIGHT,
-    WAKE_SETTLE,
     WAKE_TIMEOUT,
 )
 
@@ -34,6 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Sunshine app that belongs to the Home Assistant tab (server.py creates it under this name)
 HOME_APP = "Home Assistant"
+BROWSER_APP = "com.webos.app.browser"
 
 
 def check_can_show(hass: HomeAssistant, coordinator: StreamerCoordinator) -> None:
@@ -61,7 +63,6 @@ async def async_show_on_tv(hass: HomeAssistant, coordinator: StreamerCoordinator
         if not await _async_wait_on(hass, tv):
             _LOGGER.warning("%s did not switch on within %s s", tv, WAKE_TIMEOUT)
             return
-        await asyncio.sleep(WAKE_SETTLE)
 
     # Bring the right tab to the front first, so Moonlight or the browser opens on it.
     await _async_command(coordinator, command)
@@ -72,7 +73,7 @@ async def async_show_on_tv(hass: HomeAssistant, coordinator: StreamerCoordinator
         await _async_launch_moonlight(hass, coordinator, tv, link)
     else:
         url = coordinator.base_url + "/" + ("?reiter=bleiben" if link else "")
-        await _async_webos(hass, tv, "system.launcher/open", {"target": url})
+        await _async_launch(hass, tv, "system.launcher/open", {"target": url}, BROWSER_APP)
 
 
 async def _async_launch_moonlight(
@@ -95,11 +96,54 @@ async def _async_launch_moonlight(
         params["host_uuid"] = uuid
         if app_id:
             params["host_app_id"] = app_id
-    await _async_webos(hass, tv, "system.launcher/launch", {"id": MOONLIGHT_APP, "params": params})
+    await _async_launch(hass, tv, "system.launcher/launch", {"id": MOONLIGHT_APP, "params": params}, MOONLIGHT_APP)
     if not app_id:
         # Moonlight opens the host list only; switch the tab again once the stream runs.
         await asyncio.sleep(10)
         await _async_command(coordinator, f"link:{link}" if link else "zeige_home")
+
+
+async def _async_launch(hass: HomeAssistant, tv: str, command: str, payload: dict[str, Any], app: str) -> None:
+    """Start an app and repeat until the TV reports it in the foreground.
+
+    Right after switching on, webOS accepts the command but may not start the app yet. Instead of a fixed
+    pause, the start is repeated every LAUNCH_RETRY seconds until the media player's app_id shows the app.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + LAUNCH_TIMEOUT
+    while True:
+        try:
+            await _async_webos(hass, tv, command, payload)
+        except HomeAssistantError as err:
+            _LOGGER.debug("%s not ready yet: %s", tv, err)
+        if await _async_wait_app(hass, tv, app, LAUNCH_RETRY) or loop.time() >= deadline:
+            return
+
+
+async def _async_wait_app(hass: HomeAssistant, tv: str, app: str, timeout: float) -> bool:
+    """Wait until the media player reports the app in the foreground."""
+    done = asyncio.Event()
+
+    def _check() -> bool:
+        state = hass.states.get(tv)
+        return state is not None and state.attributes.get("app_id") == app
+
+    @callback
+    def _changed(event: Event[EventStateChangedData]) -> None:
+        if _check():
+            done.set()
+
+    unsub = async_track_state_change_event(hass, [tv], _changed)
+    try:
+        if _check():
+            return True
+        async with asyncio.timeout(timeout):
+            await done.wait()
+        return True
+    except TimeoutError:
+        return False
+    finally:
+        unsub()
 
 
 async def _async_wake(hass: HomeAssistant, entity_id: str) -> None:

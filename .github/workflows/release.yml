@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check manifest version matches the tag
+        run: |
+          v=$(python3 -c "import json; print(json.load(open('custom_components/tv_streamer/manifest.json'))['version'])")
+          [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "manifest version $v does not match tag ${GITHUB_REF_NAME}"; exit 1; }
+      - name: Build zip for HACS
+        run: cd custom_components/tv_streamer && zip -r ../../tv_streamer.zip . -x '__pycache__/*'
+      - name: Upload
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: gh release upload "${GITHUB_REF_NAME}" tv_streamer.zip --clobber

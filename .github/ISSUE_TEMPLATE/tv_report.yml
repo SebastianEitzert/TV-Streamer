@@ -1,0 +1,20 @@
+name: TV report
+description: Share what works on your TV, so the presets can include it
+labels: [tv-report]
+body:
+  - type: input
+    id: model
+    attributes: {label: TV model, placeholder: "LG 86UN85006LA"}
+    validations: {required: true}
+  - type: input
+    id: webos
+    attributes: {label: webOS / firmware version}
+  - type: dropdown
+    id: path
+    attributes: {label: Video path, options: [Moonlight, MSE, WebRTC]}
+  - type: input
+    id: size
+    attributes: {label: "Picture size, zoom, bit rate", placeholder: "2560×1440, zoom 1.67, 16 Mbit/s"}
+  - type: textarea
+    id: result
+    attributes: {label: Result, description: Picture, delay, pointer, remote keys, audio}

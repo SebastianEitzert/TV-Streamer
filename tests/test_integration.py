@@ -191,6 +191,9 @@ async def test_show_on_tv_wakes_and_starts_moonlight(hass: HomeAssistant, entry,
 
     async def webos(call):
         calls.append(("webos", dict(call.data)))
+        # the TV ignores the first start right after switching on, the second one works
+        if sum(c[0] == "webos" for c in calls) >= 2:
+            hass.states.async_set(tv, "on", {"app_id": call.data["payload"]["id"]})
 
     hass.services.async_register("switch", "turn_on", wake)
     hass.services.async_register("webostv", "command", webos)
@@ -204,16 +207,17 @@ async def test_show_on_tv_wakes_and_starts_moonlight(hass: HomeAssistant, entry,
     aioclient_mock.get("http://192.168.1.42:8092/api/status", json={**STATUS, "name": "living_room"})
     aioclient_mock.post("http://192.168.1.42:8091/api/cmd", json={"ok": True})
     aioclient_mock.get(LG_CHECK_URL, text=LG_OK)
-    with patch("custom_components.tv_streamer.show.WAKE_SETTLE", 0):
+    with patch("custom_components.tv_streamer.show.LAUNCH_RETRY", 0.05):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
         await hass.services.async_call(
             "button", "press", {"entity_id": "button.tv_streamer_bedroom_show_loxone_on_tv"}, blocking=True
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
     assert calls[0] == ("wake", {"entity_id": "switch.wol_tv1"})
-    assert calls[1] == (
+    assert [c[0] for c in calls] == ["wake", "webos", "webos"]
+    assert calls[2] == (
         "webos",
         {
             "entity_id": tv,

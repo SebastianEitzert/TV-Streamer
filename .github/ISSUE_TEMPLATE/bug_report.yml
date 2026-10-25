@@ -1,0 +1,27 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: {label: What happened?, description: What did you do, what did you expect, what happened instead?}
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes: {label: Integration version, placeholder: "0.3.0"}
+    validations: {required: true}
+  - type: input
+    id: ha
+    attributes: {label: Home Assistant version, placeholder: "2026.10.1"}
+  - type: input
+    id: tv
+    attributes: {label: TV model and webOS version, placeholder: "LG 49UK7550, webOS 4.0"}
+  - type: dropdown
+    id: path
+    attributes: {label: Video path, options: [Moonlight, MSE, WebRTC]}
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Home Assistant log lines for `tv_streamer` and `journalctl -u tv-streamer-config` from the VM. Remove tokens and addresses.
+      render: text

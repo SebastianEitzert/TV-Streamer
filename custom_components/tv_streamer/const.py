@@ -41,7 +41,8 @@ CONF_WAKE: Final = "wake_entity"  # button/script that switches the TV on (e.g. 
 WAKE_DOMAINS: Final = ["button", "input_button", "script", "switch"]
 TV_OFF_STATES: Final = {"off", "unavailable", "unknown", "standby"}
 WAKE_TIMEOUT: Final = 90  # s until the TV must report itself on
-WAKE_SETTLE: Final = 8  # s webOS needs after switching on before it starts apps
+LAUNCH_RETRY: Final = 3  # s to wait for the app to appear before starting it again
+LAUNCH_TIMEOUT: Final = 20  # s to keep trying right after switching on
 MOONLIGHT_APP: Final = "com.limelight.webos"
 
 # Per link (extra browser tabs, e.g. a Loxone web interface)

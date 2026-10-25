@@ -113,22 +113,59 @@ Die Anmeldungen bleiben im Docker-Volume des Containers.
 
 ### 9. Fernseher einrichten
 
-**Browser (MSE / WebRTC):** im Browser des Fernsehers `http://<VM-IP>:8091/` öffnen.
+**Browser (MSE / WebRTC):** im Browser des Fernsehers `http://<VM-IP>:8091/` öffnen (zweiter Streamer `:8092`, …).
+*Am Fernseher zeigen* öffnet die Seite selbst.
 
-**Moonlight (LG webOS):**
+**Moonlight (LG webOS, empfohlen):** Moonlight gibt es nicht im LG Content Store. Es wird als Entwickler-App installiert,
+der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 30 Minuten.
 
-1. Kostenloses LG-Entwicklerkonto anlegen: <https://webostv.developer.lge.com>.
-2. Am Fernseher aus dem LG Content Store **Developer Mode** installieren, anmelden, *Dev Mode Status* einschalten (der
-   Fernseher startet neu), danach *Key Server* einschalten.
-3. Am PC den [webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop/releases) installieren, den Fernseher
-   hinzufügen (IP und Passphrase aus der Developer-Mode-App) und [Moonlight TV](https://github.com/mariotaku/moonlight-tv/releases) installieren.
-4. Die Sunshine-Oberfläche `https://<VM-IP>:47990` öffnen (zweiter Streamer `:48090`), die Zertifikatswarnung bestätigen und
-   Sunshine-Benutzer und -Kennwort anlegen.
-5. In Moonlight am Fernseher den Host `<VM-IP>` hinzufügen (zweiter Streamer `<VM-IP>:48089`); die angezeigte PIN in der
-   Sunshine-Oberfläche eintragen.
-6. **Session-Token für die Integration:** das Developer-Mode-Session-Token aus dem webOS Dev Manager kopieren – entweder die
-   Verlängerungs-URL (`…/ResetDevModeSession.dev?sessionToken=…`) oder nur das Token – und in den Einstellungen des Streamers
-   eintragen (*Konfigurieren → Streamer bearbeiten → LG-Developer-Mode-Session-Token*). Die Integration verlängert täglich.
+#### 9.1 Entwicklermodus am Fernseher
+1. Kostenloses LG-Entwicklerkonto anlegen: <https://webostv.developer.lge.com> (*Sign In → Create Account*).
+2. Am Fernseher den **LG Content Store** öffnen, nach **Developer Mode** suchen und installieren.
+3. *Developer Mode* öffnen, mit dem Entwicklerkonto anmelden und **Dev Mode Status** einschalten. Der Fernseher startet neu.
+4. *Developer Mode* wieder öffnen und **Key Server** einschalten. Die App zeigt jetzt die **IP-Adresse** des Fernsehers und
+   eine **Passphrase** – beides braucht der nächste Schritt. Hier läuft auch der Zähler der Sitzung (etwa 1000 Stunden);
+   die Integration verlängert ihn täglich, sobald das Token eingetragen ist (9.4).
+
+#### 9.2 webOS Dev Manager am PC
+1. Den [webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop/releases) installieren (Windows, macOS, Linux).
+2. *Gerät hinzufügen*: IP-Adresse des Fernsehers und die Passphrase aus der Developer-Mode-App eintragen. Der Dev Manager
+   holt den SSH-Schlüssel vom Key Server des Fernsehers und verbindet sich.
+
+#### 9.3 Moonlight installieren
+1. Die neueste `com.limelight.webos_<Fassung>_arm.ipk` von den
+   [Moonlight-TV-Releases](https://github.com/mariotaku/moonlight-tv/releases) herunterladen
+   (oder – sobald verfügbar – die angepasste Fassung aus den Releases dieses Repositorys; sie gibt zusätzlich Grün, Blau
+   und Wiedergabe/Pause an das Dashboard weiter).
+2. Im Dev Manager **Apps → Installieren** öffnen und die `.ipk` wählen. Moonlight erscheint in der App-Liste des Fernsehers.
+3. Am PC die Sunshine-Oberfläche des Streamers öffnen: `https://<VM-IP>:47990` (zweiter Streamer `:48090`, …). Die
+   Zertifikatswarnung bestätigen (Sunshine nutzt ein eigenes Zertifikat) und Sunshine-Benutzername und -Kennwort anlegen.
+4. Am Fernseher Moonlight → **+** (Host hinzufügen) → `<VM-IP>` eintragen (zweiter Streamer `<VM-IP>:48089`, …).
+   Moonlight findet den Streamer nicht von selbst, weil er in Docker läuft.
+5. Moonlight zeigt eine **4-stellige PIN**. In der Sunshine-Oberfläche **PIN** öffnen, PIN und einen Namen für den
+   Fernseher eintragen, senden.
+6. In Moonlight den Host öffnen und **Home Assistant** einmal starten (und jeden zusätzlichen Reiter, z. B. **Loxone**).
+   Danach startet *Am Fernseher zeigen* diese Apps direkt.
+
+Empfohlene Moonlight-Einstellungen: Auflösung wie in den Streamer-Einstellungen (webOS 4: 1080p), 30 Bilder/s,
+10–16 Mbit/s, Decoder Voreinstellung, Maus **absolut**.
+
+#### 9.4 Session-Token für die automatische Verlängerung
+LG beendet den Entwicklermodus nach etwa 1000 Stunden und entfernt Moonlight, wenn die Sitzung nicht verlängert wird.
+
+1. Im Dev Manager den Fernseher wählen → **Info**. Die Seite zeigt die Restlaufzeit und die Knöpfe *Renew session* und
+   **Renew automatically…**.
+2. *Renew automatically…* zeigt die Verlängerungs-URL
+   `https://developer.lge.com/secure/ResetDevModeSession.dev?sessionToken=…` – kopieren (ganze URL oder nur das Token).
+3. In Home Assistant: *TV Streamer → Konfigurieren → Streamer bearbeiten → LG-Developer-Mode-Session-Token*, einfügen,
+   speichern. Die Integration prüft das Token sofort.
+
+Ohne Dev Manager lässt sich das Token per SSH am Fernseher lesen: `cat /var/luna/preferences/devmode_enabled`.
+Das Token ändert sich, wenn der Entwicklermodus aus- und wieder eingeschaltet wird – die Integration meldet dann eine
+**Reparatur**, die das neue abfragt.
+
+Achtung bei Firmware-Updates des Fernsehers: Sie können den Entwicklermodus zurücksetzen – danach den Sensor
+*Developer-Modus endet* prüfen.
 
 ### 10. Prüfen
 
@@ -145,6 +182,11 @@ Umstieg einer bestehenden, von Hand eingerichteten Installation: [docs/migration
 - Die Streamer melden ihren Zustand an einen Webhook der Integration und werden zusätzlich alle 60 s abgefragt.
 - LG-Session-Tokens stehen nur im Konfigurationseintrag – nicht in `www/`, in der Compose-Datei, in Logs oder Diagnosedaten.
   Home Assistant speichert Konfigurationseinträge unverschlüsselt in `.storage/` – Sicherungen schützen.
+
+## Mitmachen
+
+Siehe [CONTRIBUTING.md](CONTRIBUTING.md) (englisch). Änderungen: [CHANGELOG.md](CHANGELOG.md).
+Sicherheit: [SECURITY.md](SECURITY.md). Fremdsoftware: [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Lizenz
 
