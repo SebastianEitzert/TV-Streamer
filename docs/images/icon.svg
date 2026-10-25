@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e88e5"/>
+      <stop offset="1" stop-color="#1565c0"/>
+    </linearGradient>
+  </defs>
+  <!-- TV body -->
+  <rect x="16" y="36" width="224" height="152" rx="22" fill="#263238"/>
+  <rect x="28" y="48" width="200" height="128" rx="12" fill="url(#screen)"/>
+  <!-- stand -->
+  <path d="M104 188 h48 l10 26 h-68 z" fill="#263238"/>
+  <rect x="80" y="210" width="96" height="12" rx="6" fill="#263238"/>
+  <!-- dashboard tiles on the screen -->
+  <rect x="44" y="64" width="52" height="40" rx="7" fill="#ffffff" fill-opacity="0.92"/>
+  <rect x="44" y="114" width="52" height="46" rx="7" fill="#ffffff" fill-opacity="0.55"/>
+  <rect x="106" y="64" width="44" height="96" rx="7" fill="#ffffff" fill-opacity="0.35"/>
+  <!-- stream signal -->
+  <g fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round">
+    <circle cx="176" cy="132" r="7" fill="#ffffff" stroke="none"/>
+    <path d="M196 112 a28 28 0 0 1 0 40"/>
+    <path d="M212 96 a50 50 0 0 1 0 72" stroke-opacity="0.75"/>
+  </g>
+  <!-- play mark -->
+  <path d="M166 66 l26 15 l-26 15 z" fill="#ffc107"/>
+</svg>

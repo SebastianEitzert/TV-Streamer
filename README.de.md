@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/logo.png" alt="TV Streamer" width="420"></p>
+
 # TV-Streamer für Home Assistant
 
 🇬🇧 [English version](README.md)
@@ -6,84 +8,144 @@ Home-Assistant-Dashboards auf Fernsehern, geliefert von einer kleinen VM: je Fer
 **MSE**-Video, über **WebRTC** oder über **Sunshine/Moonlight** zum Fernseher geschickt. Maus, Fernbedienung und Touch bedienen das
 Dashboard, als hinge ein PC am Fernseher.
 
-Dieses Repository enthält:
-
 | Teil | Stand |
 |---|---|
-| `custom_components/tv_streamer` – Home-Assistant-Integration (Einrichtung in der Oberfläche, Geräte, Sensoren, Verlängerung des LG-Developer-Modus, Konfig-Endpunkt für die VM) | **0.1 – erste Fassung** |
-| VM-Image (Docker: `server.py`, Chromium, Sunshine) und Proxmox-Einrichtung | geplant |
+| `custom_components/tv_streamer` – Home-Assistant-Integration (Einrichtung in der Oberfläche, Geräte, Sensoren, Verlängerung des LG-Developer-Modus, Konfig-Endpunkt für die VM) | **0.1** |
+| `vm/proxmox-vm.sh` – legt die VM in Proxmox VE an | **0.1** |
+| VM-Image (Docker: `server.py`, Chromium, Sunshine) | geplant – siehe Hinweis in Schritt 3 |
 | Grundriss-Karte für Lovelace (HACS) | geplant |
 | Angepasstes Moonlight für LG webOS (`.ipk`, GPL-3.0) | geplant |
-| Dokumentiertes Wissen (webOS 4/5, MSE vs. WebRTC, Zeichen-Threads, iGPU-Grenzen) | geplant |
 
-## Die Integration
+## Anleitung
 
-**Einrichtung in der Oberfläche**, ganz ohne YAML:
-
-- Ein Eintrag je VM: Adresse der VM und Adresse von Home Assistant aus Sicht der VM.
-- **Optionen → Streamer hinzufügen**: Name, Raum, Fernseher (`media_player`), Fernsehertyp, Bildweg (MSE / WebRTC / Moonlight),
-  Bildgröße, Zoom, Bitrate. Der Fernsehertyp setzt Werte, die an echten Geräten bestätigt sind:
-
-  | Fernsehertyp | Bild | Zoom | Empfohlener Bildweg |
-  |---|---|---|---|
-  | LG webOS 4 (z. B. UK7550) | 1920×1080 | 1,25 | Moonlight oder MSE (WebRTC zeigt 4:3 und friert ein) |
-  | LG webOS 5+ (z. B. 86UN85) | 2560×1440 | 1,67 | Moonlight |
-  | andere | 1920×1080 | 1,25 | MSE |
-
-- **Zusätzliche Reiter** (z. B. Loxone): Name, Adresse, *Anmeldung merken*, *nie neu laden*.
-- **Allgemeine Einstellungen**: Startansicht, Ruhezeit ohne Zuschauer, *zurück zur Startansicht nach* (Moonlight-Pause), Chromium-Zeichen-Threads, Ton.
-- **VM-Einrichtung**: zeigt einen einzeiligen Befehl für die VM (siehe unten).
-
-**Je Streamer** gibt es ein Gerät (mit Link auf seine Webseite) und:
-
-| Entität | |
-|---|---|
-| Zustand | zeigt / ruht / bereit, Attribute: Zuschauer, Bildweg, Format, Fernseher |
-| Zuschauer, Verzögerung, Bildrate, Datenrate | Messwerte des Streamers |
-| Reiter, Fassung | Diagnose |
-| Erreichbar, Moonlight-Stream | Binärsensoren |
-| Startansicht, Neu laden, Zurück, *<Reiter>* zeigen | Buttons zur Fernsteuerung des Streamer-Browsers |
-
-
-Die Streamer melden sich an einem Webhook, den die Integration selbst anlegt (keine Vorlagen-Sensoren mehr nötig), und werden
-zusätzlich alle 60 s abgefragt.
-
-### LG-Developer-Modus
-
-Moonlight ist eine selbst installierte App, deshalb brauchen LG-Fernseher den **Developer-Modus**. LG beendet ihn nach etwa
-1000 Stunden, wenn er nicht verlängert wird. Das Session-Token – oder die ganze Verlängerungs-URL aus dem webOS Dev Manager – in
-die Einstellungen des Streamers einfügen. Die Integration
-
-- verlängert die Sitzung täglich (Standard 04:17, einstellbar),
-- zeigt *Developer-Modus endet* und *zuletzt verlängert* als Sensoren und bietet einen Button *verlängern*,
-- meldet eine **Reparatur**, wenn LG die Verlängerung ablehnt; die Reparatur fragt ein neues Token ab und prüft es sofort.
-
-Das Token steht nur im Konfigurationseintrag – nicht in `www/`, nicht in der Compose-Datei, nicht in Logs oder Diagnosedaten.
-Hinweis: Home Assistant speichert Konfigurationseinträge unverschlüsselt in `.storage/core.config_entries` – Sicherungen schützen.
-
-### Wie die VM ihre Konfiguration bekommt
-
-Die Integration erzeugt die `docker-compose.yml` der VM und liefert sie unter
-`/api/tv_streamer/<entry_id>/docker-compose.yml` aus. Die VM meldet sich mit ihrem eigenen **VM-Token** an (entsteht mit dem
-Eintrag, sichtbar nur unter *Optionen → VM-Einrichtung*), nicht mit einem HA-Benutzer. Den dort angezeigten Befehl einmal als root
-auf der VM ausführen:
-
-```sh
-curl -fsSL -H "Authorization: Bearer <VM-Token>" http://<ha>:8123/api/tv_streamer/<entry_id>/update.sh | sh -s -- install
+```
+Proxmox-VE-Host ──► VM „tv-streamer“ (Debian 13 + Docker)
+                     ├─ Streamer 1 (Chromium + Kodierer/Sunshine) ──► Fernseher 1
+                     └─ Streamer 2 …                              ──► Fernseher 2
+Home Assistant ◄──── Statusmeldungen (Webhook) ── Streamer
+Home Assistant ────► docker-compose.yml (Endpunkt mit Token) ──► VM
 ```
 
-Er richtet einen systemd-Timer ein (`tv-streamer-config.timer`), der alle 5 Minuten prüft und bei einer neuen Konfiguration
-`docker compose up -d --build --remove-orphans` ausführt. Ports je Streamer-Platz *n* (0, 1, …): Webseite `8091+n`,
-WebRTC `8555+n`, Sunshine `47989+100·n` (Web-Oberfläche +1).
+### 1. Proxmox VE installieren
 
-Umstieg einer bestehenden Installation: [docs/migration.de.md](docs/migration.de.md).
+Du brauchst einen Rechner mit [Proxmox VE](https://www.proxmox.com/de/proxmox-virtual-environment/uebersicht).
+Offizielle Anleitung: **[Proxmox-VE-Installation](https://pve.proxmox.com/wiki/Installation)**
+([Download](https://www.proxmox.com/de/downloads)). Home Assistant kann auf demselben Rechner laufen (z. B. HA OS als VM).
 
-## Installation
+Größe der Streamer-VM: je Fernseher etwa 2 CPU-Kerne und 2 GB RAM bei Software-Kodierung mit 1080p/1440p.
+4K ist für Software-Kodierung zu viel.
 
-HACS → *Benutzerdefinierte Repositories* → `https://github.com/SebastianEitzert/TV-Streamer`, Kategorie *Integration*. Oder
-`custom_components/tv_streamer` nach `config/custom_components` kopieren. Neu starten, dann *Einstellungen → Geräte & Dienste →
-Integration hinzufügen → TV Streamer*.
+### 2. Streamer-VM anlegen
+
+In der Proxmox-Oberfläche **Knoten → Shell** öffnen und ausführen:
+
+```sh
+curl -fsSLo /root/tv-streamer-vm.sh https://raw.githubusercontent.com/SebastianEitzert/TV-Streamer/main/vm/proxmox-vm.sh
+bash /root/tv-streamer-vm.sh
+```
+
+Das Skript fragt VM-ID, IP-Adresse (oder DHCP), Bridge, Speicher, Kerne, RAM und ein Passwort für den Benutzer `tv`. Es lädt
+das Debian-13-Cloud-Image (mit Prüfsumme), legt die VM an und installiert beim ersten Start Docker (etwa 5 Minuten).
+
+Gib der VM eine **feste IP-Adresse** (im Skript oder als DHCP-Reservierung im Router) – Fernseher und Moonlight verbinden sich dorthin.
+
+### 3. Streamer-Image auf die VM bringen
+
+> **Hinweis:** Das Streamer-Image (`Dockerfile`, `server.py`, `client.html`, Sunshine) erscheint mit der nächsten Fassung
+> in diesem Repository unter `vm/`. Bis dahin klappt dieser Schritt nur, wenn die Dateien bereits in `/opt/tv-streamer`
+> auf der VM liegen. Die Integration baut das Image aus diesem Ordner (`docker compose up --build`).
+
+### 4. Integration installieren
+
+**HACS** (Repository muss öffentlich sein): HACS → ⋮ → *Benutzerdefinierte Repositories* →
+`https://github.com/SebastianEitzert/TV-Streamer`, Kategorie *Integration* → installieren → Home Assistant neu starten.
+
+**Von Hand:** `custom_components/tv_streamer` (samt `brand/` und `translations/`) nach `/config/custom_components/` von
+Home Assistant kopieren, z. B. mit der App *Samba share* oder *File editor* → Home Assistant neu starten.
+
+### 5. VM in Home Assistant eintragen
+
+*Einstellungen → Geräte & Dienste → Integration hinzufügen → **TV Streamer***
+
+- **Adresse der VM**: die feste IP der VM, z. B. `192.168.1.42`
+- **Adresse von Home Assistant aus Sicht der VM**: die lokale Adresse, z. B. `http://192.168.1.10:8123`
+
+### 6. Streamer und Reiter einrichten
+
+*TV Streamer → Konfigurieren*:
+
+1. **Streamer hinzufügen** – Name und Fernsehertyp, danach Raum, Fernseher (`media_player`), Bildweg, Bildgröße, Zoom und Bitrate.
+   Der Fernsehertyp setzt an echten Geräten bestätigte Werte:
+
+   | Fernsehertyp | Bild | Zoom | Empfohlener Bildweg |
+   |---|---|---|---|
+   | LG webOS 4 (z. B. UK7550) | 1920×1080 | 1,25 | Moonlight oder MSE (WebRTC zeigt 4:3 und friert ein) |
+   | LG webOS 5+ (z. B. 86UN85) | 2560×1440 | 1,67 | Moonlight |
+   | andere | 1920×1080 | 1,25 | MSE |
+
+   Bei LG-Fernsehern mit Moonlight zusätzlich das **Developer-Mode-Session-Token** eintragen (siehe Schritt 9).
+2. **Reiter hinzufügen** (optional) – z. B. Loxone oder die Router-Oberfläche: Name, Adresse, *Anmeldung merken*, *nie neu laden*.
+3. **Allgemeine Einstellungen** – Startansicht (das Dashboard, das die Fernseher öffnen), Ruhezeit, *zurück zur Startansicht nach*,
+   Zeichen-Threads, Ton, Zeitzone.
+4. **Speichern.**
+
+Ports je Streamer-Platz *n* (0, 1, …): Webseite `8091+n`, WebRTC `8555+n`, Sunshine `47989+100·n` (Web-Oberfläche +1).
+
+### 7. VM mit Home Assistant verbinden
+
+*Konfigurieren → **VM-Einrichtung*** zeigt einen einzeiligen Befehl mit dem VM-Token. Ihn einmal als root auf der VM ausführen –
+in der Konsole der VM (vorher `sudo -i`) oder ohne Anmeldung aus der Proxmox-Shell:
+
+```sh
+qm guest exec <VMID> --timeout 600 -- sh -c "<Befehl aus der VM-Einrichtung>"
+```
+
+Er richtet den Timer `tv-streamer-config.timer` ein, holt die erzeugte `docker-compose.yml` und startet die Container.
+Ab dann erreicht jede Änderung in den Optionen der Integration die VM innerhalb von 5 Minuten.
+Prüfen: `journalctl -u tv-streamer-config` und `docker compose ps` in `/opt/tv-streamer`.
+
+### 8. Erstanmeldung (einmal je Streamer)
+
+Am PC `http://<VM-IP>:8091/` öffnen (zweiter Streamer `:8092`, …). Man sieht und bedient den Chromium des Streamers.
+In Home Assistant mit einem eigenen Benutzer (z. B. `tv`) anmelden und *Angemeldet bleiben* anhaken. Zusätzliche Reiter genauso.
+Die Anmeldungen bleiben im Docker-Volume des Containers.
+
+### 9. Fernseher einrichten
+
+**Browser (MSE / WebRTC):** im Browser des Fernsehers `http://<VM-IP>:8091/` öffnen.
+
+**Moonlight (LG webOS):**
+
+1. Kostenloses LG-Entwicklerkonto anlegen: <https://webostv.developer.lge.com>.
+2. Am Fernseher aus dem LG Content Store **Developer Mode** installieren, anmelden, *Dev Mode Status* einschalten (der
+   Fernseher startet neu), danach *Key Server* einschalten.
+3. Am PC den [webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop/releases) installieren, den Fernseher
+   hinzufügen (IP und Passphrase aus der Developer-Mode-App) und [Moonlight TV](https://github.com/mariotaku/moonlight-tv/releases) installieren.
+4. Die Sunshine-Oberfläche `https://<VM-IP>:47990` öffnen (zweiter Streamer `:48090`), die Zertifikatswarnung bestätigen und
+   Sunshine-Benutzer und -Kennwort anlegen.
+5. In Moonlight am Fernseher den Host `<VM-IP>` hinzufügen (zweiter Streamer `<VM-IP>:48089`); die angezeigte PIN in der
+   Sunshine-Oberfläche eintragen.
+6. **Session-Token für die Integration:** das Developer-Mode-Session-Token aus dem webOS Dev Manager kopieren – entweder die
+   Verlängerungs-URL (`…/ResetDevModeSession.dev?sessionToken=…`) oder nur das Token – und in den Einstellungen des Streamers
+   eintragen (*Konfigurieren → Streamer bearbeiten → LG-Developer-Mode-Session-Token*). Die Integration verlängert täglich.
+
+### 10. Prüfen
+
+Jeder Streamer ist ein Gerät mit Sensoren (Zustand, Zuschauer, Verzögerung, Bildrate, Datenrate), den Binärsensoren
+*Erreichbar* und *Moonlight-Stream* und Buttons (Startansicht, Neu laden, Zurück, Reiter zeigen, Developer-Modus verlängern).
+Lehnt LG eine Verlängerung ab, erscheint eine **Reparatur**, die ein neues Token abfragt.
+
+Umstieg einer bestehenden, von Hand eingerichteten Installation: [docs/migration.de.md](docs/migration.de.md).
+
+## So funktioniert es
+
+- Die Integration erzeugt die `docker-compose.yml` und liefert sie unter `/api/tv_streamer/<entry_id>/docker-compose.yml` aus.
+  Die VM meldet sich mit ihrem eigenen **VM-Token** an, nicht mit einem HA-Benutzer.
+- Die Streamer melden ihren Zustand an einen Webhook der Integration und werden zusätzlich alle 60 s abgefragt.
+- LG-Session-Tokens stehen nur im Konfigurationseintrag – nicht in `www/`, in der Compose-Datei, in Logs oder Diagnosedaten.
+  Home Assistant speichert Konfigurationseinträge unverschlüsselt in `.storage/` – Sicherungen schützen.
 
 ## Lizenz
 
 GPL-3.0 – siehe [LICENSE](LICENSE). Der Moonlight-Teil wird auf [moonlight-tv](https://github.com/mariotaku/moonlight-tv) (GPL-3.0) aufbauen.
+Logo: eigene Gestaltung, siehe `docs/images/icon.svg`.
