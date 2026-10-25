@@ -9,6 +9,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import issue_registry as ir
 
 from custom_components.tv_streamer.compose import build_compose
+from custom_components.tv_streamer.config_flow import normalize_url
 from custom_components.tv_streamer.const import (
     CONF_HA_URL,
     CONF_HOST,
@@ -106,6 +107,7 @@ async def test_setup_endpoints_webhook(hass: HomeAssistant, entry, aioclient_moc
     await hass.async_block_till_done()
     assert events == [{"streamer": "bedroom", "key": "play_pause", "entry_id": entry.entry_id}]
     assert hass.states.get("sensor.tv_streamer_bedroom_state").state == "showing"  # status untouched
+    assert hass.states.get("event.tv_streamer_bedroom_remote").attributes["event_type"] == "play_pause"
 
     await hass.services.async_call(
         "button", "press", {"entity_id": "button.tv_streamer_bedroom_start_view"}, blocking=True
@@ -139,7 +141,7 @@ async def test_config_and_options_flow(hass: HomeAssistant, aioclient_mock) -> N
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     assert result["type"] is FlowResultType.FORM
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_HOST: "10.0.0.5", CONF_HA_URL: "http://10.0.0.2:8123/"}
+        result["flow_id"], {CONF_HOST: "10.0.0.5", CONF_HA_URL: "10.0.0.2:8123/"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     entry = result["result"]
@@ -169,16 +171,25 @@ async def test_config_and_options_flow(hass: HomeAssistant, aioclient_mock) -> N
             "lg_session_token": f"{LG_RENEW_URL}?sessionToken=tok",
         },
     )
-    assert flow["type"] is FlowResultType.MENU
-    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"next_step_id": "vm_setup"})
-    assert "Bearer " in flow["description_placeholders"]["command"]
-    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {})
-    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"next_step_id": "save"})
-    assert flow["type"] is FlowResultType.CREATE_ENTRY
+    assert flow["type"] is FlowResultType.CREATE_ENTRY  # saved right away, no extra "save" step
     await hass.async_block_till_done()
     streamer = entry.options[CONF_STREAMERS][0]
     assert streamer["id"] == "kitchen" and streamer["index"] == 0 and streamer["lg_session_token"] == "tok"
     assert hass.states.get("sensor.tv_streamer_kitchen_state") is not None
+
+    flow = await hass.config_entries.options.async_init(entry.entry_id)
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"next_step_id": "vm_setup"})
+    assert "Bearer " in flow["description_placeholders"]["command"]
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {})
+    assert flow["type"] is FlowResultType.MENU
+
+
+def test_normalize_url() -> None:
+    assert normalize_url("192.168.1.160") == "http://192.168.1.160/"
+    assert normalize_url("https://example.org/x") == "https://example.org/x"
+    assert normalize_url("/dashboard-tv/home", "http://10.0.0.2:8123") == "http://10.0.0.2:8123/dashboard-tv/home"
+    assert normalize_url("") is None
+    assert normalize_url("http://") is None
 
 
 async def test_show_on_tv_wakes_and_starts_moonlight(hass: HomeAssistant, entry, aioclient_mock) -> None:

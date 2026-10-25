@@ -125,9 +125,12 @@ of Home Assistant, e.g. with the *Samba share* or *File editor* app → restart 
    | other | 1920×1080 | 1.25 | MSE |
 
    For LG TVs with Moonlight also paste the **developer mode session token** (see step 9).
-2. **Add extra tab** (optional) – e.g. a Loxone or router web interface: name, address, *remember login*, *never reload*.
-3. **General settings** – start view (the dashboard the TVs open), rest time, *back to start view after*, raster threads, audio, time zone.
-4. **Save.**
+2. **Add extra tab** (optional) – e.g. a Loxone or router web interface: name, address (`192.168.1.160` is enough,
+   `http://` is added), *remember login*, *never reload*.
+3. **General settings** – start view (the dashboard the TVs open; a path like `/dashboard-tv/home` is enough), rest time,
+   *back to start view after*, raster threads, audio, time zone.
+
+Every step is saved as soon as you confirm it – there is no separate save button.
 
 Ports per streamer slot *n* (0, 1, …): web page `8091+n`, WebRTC `8555+n`, Sunshine `47989+100·n` (web UI +1).
 
@@ -176,7 +179,9 @@ so the TV needs LG's **developer mode**. This takes about 30 minutes once.
 1. Download the latest `com.limelight.webos_<version>_arm.ipk` from the
    [Moonlight TV releases](https://github.com/mariotaku/moonlight-tv/releases)
    – or, recommended, the [TV Streamer build of Moonlight](moonlight/README.md): it passes the blue, green and
-   play/pause keys to the dashboard and brings the pointer back right after the arrow keys.
+   play/pause keys to the dashboard and brings the pointer back right after the arrow keys. Each key also shows up in
+   Home Assistant as the event entity `event.tv_streamer_<streamer>_remote` (event types `blue`, `green`,
+   `play_pause`, `stop`) – usable as a trigger in automations.
 2. In the Dev Manager open **Apps → Install** and select the `.ipk`. Moonlight appears in the TV's app list.
 3. Open the Sunshine web UI of the streamer on your PC: `https://<VM-IP>:47990` (second streamer `:48090`, …). Accept the
    certificate warning (Sunshine uses its own certificate) and create a Sunshine user name and password.

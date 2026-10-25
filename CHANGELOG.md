@@ -7,6 +7,10 @@ All notable changes to this project. Versions follow the `version` in `custom_co
   built by a GitHub Action from the upstream release v1.6.37.
 - Streamer: blue = Home Assistant, green = first extra tab, every remote key also fires the Home Assistant event
   `tv_streamer_key`.
+- Event entity "Remote" per streamer (`event.tv_streamer_<streamer>_remote`) with the event types `blue`, `green`,
+  `play_pause` and `stop` – a clean automation trigger for the remote keys.
+- Options: every step is saved right away, the "Save" menu entry is gone.
+- Addresses without `http://` are accepted (`192.168.1.160`), the start view also as a bare path (`/dashboard-tv/home`).
 - Jarvis-style automations can use the "Show on TV" buttons instead of scripts.
 
 ## 0.3.1

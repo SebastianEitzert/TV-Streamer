@@ -127,10 +127,12 @@ Home Assistant kopieren, z. B. mit der App *Samba share* oder *File editor* → 
    | andere | 1920×1080 | 1,25 | MSE |
 
    Bei LG-Fernsehern mit Moonlight zusätzlich das **Developer-Mode-Session-Token** eintragen (siehe Schritt 9).
-2. **Reiter hinzufügen** (optional) – z. B. Loxone oder die Router-Oberfläche: Name, Adresse, *Anmeldung merken*, *nie neu laden*.
-3. **Allgemeine Einstellungen** – Startansicht (das Dashboard, das die Fernseher öffnen), Ruhezeit, *zurück zur Startansicht nach*,
-   Zeichen-Threads, Ton, Zeitzone.
-4. **Speichern.**
+2. **Reiter hinzufügen** (optional) – z. B. Loxone oder die Router-Oberfläche: Name, Adresse (`192.168.1.160` genügt,
+   `http://` wird ergänzt), *Anmeldung merken*, *nie neu laden*.
+3. **Allgemeine Einstellungen** – Startansicht (das Dashboard, das die Fernseher öffnen; ein Pfad wie `/dashboard-tv/home`
+   genügt), Ruhezeit, *zurück zur Startansicht nach*, Zeichen-Threads, Ton, Zeitzone.
+
+Jeder Schritt wird gespeichert, sobald er bestätigt ist – einen eigenen Speichern-Knopf gibt es nicht.
 
 Ports je Streamer-Platz *n* (0, 1, …): Webseite `8091+n`, WebRTC `8555+n`, Sunshine `47989+100·n` (Web-Oberfläche +1).
 
@@ -179,7 +181,9 @@ der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 3
 1. Die neueste `com.limelight.webos_<Fassung>_arm.ipk` von den
    [Moonlight-TV-Releases](https://github.com/mariotaku/moonlight-tv/releases) herunterladen
    – oder, empfohlen, die [TV-Streamer-Fassung von Moonlight](moonlight/README.md): Sie gibt Blau, Grün und
-   Wiedergabe/Pause an das Dashboard weiter und zeigt den Zeiger nach den Pfeiltasten sofort wieder.
+   Wiedergabe/Pause an das Dashboard weiter und zeigt den Zeiger nach den Pfeiltasten sofort wieder. Jede Taste erscheint
+   außerdem in Home Assistant als Ereignis-Entität `event.tv_streamer_<streamer>_fernbedienung` (Ereignistypen `blue`,
+   `green`, `play_pause`, `stop`) – nutzbar als Auslöser in Automationen.
 2. Im Dev Manager **Apps → Installieren** öffnen und die `.ipk` wählen. Moonlight erscheint in der App-Liste des Fernsehers.
 3. Am PC die Sunshine-Oberfläche des Streamers öffnen: `https://<VM-IP>:47990` (zweiter Streamer `:48090`, …). Die
    Zertifikatswarnung bestätigen (Sunshine nutzt ein eigenes Zertifikat) und Sunshine-Benutzername und -Kennwort anlegen.

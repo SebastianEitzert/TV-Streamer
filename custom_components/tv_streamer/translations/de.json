@@ -10,7 +10,7 @@
         },
         "data_description": {
           "host": "IP-Adresse oder Hostname der VM, z. B. 192.168.1.42. Fernseher und Moonlight verbinden sich mit dieser Adresse.",
-          "ha_url": "Für Startansicht, Statusmeldungen und den Konfigurationsabruf. Die lokale Adresse verwenden, z. B. http://192.168.1.10:8123."
+          "ha_url": "Für Startansicht, Statusmeldungen und den Konfigurationsabruf. Die lokale Adresse verwenden, z. B. 192.168.1.10:8123 (http:// wird ergänzt)."
         }
       },
       "reconfigure": {
@@ -24,13 +24,16 @@
     "abort": {
       "already_configured": "Diese VM ist bereits eingerichtet.",
       "reconfigure_successful": "Gespeichert. Die VM holt die neue Konfiguration innerhalb von 5 Minuten."
+    },
+    "error": {
+      "invalid_url": "Keine gültige Adresse. Beispiele: 192.168.1.160, loxone.local, https://example.com/app"
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "TV-Streamer",
-        "description": "Streamer: {streamers}\nZusätzliche Reiter: {links}\n\nÄnderungen gelten nach **Speichern**; die VM holt sie innerhalb von 5 Minuten.",
+        "description": "Streamer: {streamers}\nZusätzliche Reiter: {links}\n\nJede Änderung wird sofort gespeichert; die VM übernimmt sie innerhalb von 5 Minuten.",
         "menu_options": {
           "add_streamer": "Streamer hinzufügen",
           "edit_streamer": "Streamer bearbeiten",
@@ -38,8 +41,7 @@
           "add_link": "Reiter hinzufügen",
           "remove_link": "Reiter entfernen",
           "settings": "Allgemeine Einstellungen",
-          "vm_setup": "VM-Einrichtung",
-          "save": "Speichern"
+          "vm_setup": "VM-Einrichtung"
         }
       },
       "add_streamer": {
@@ -97,7 +99,8 @@
         },
         "data_description": {
           "remember_login": "Der Streamer speichert die Anmeldung dieses Reiters in seinem Volume und füllt sie wieder aus. Nur ein Reiter kann das.",
-          "no_reload": "Für Seiten, die beim Neuladen abmelden (z. B. Loxone)."
+          "no_reload": "Für Seiten, die beim Neuladen abmelden (z. B. Loxone).",
+          "url": "IP-Adresse, Hostname oder ganze URL – http:// wird ergänzt, z. B. 192.168.1.160"
         }
       },
       "remove_link": {
@@ -119,7 +122,7 @@
           "timezone": "Zeitzone"
         },
         "data_description": {
-          "start_url": "Dashboard, das die Streamer öffnen, z. B. http://192.168.1.10:8123/tv-dashboard/home",
+          "start_url": "Pfad in Home Assistant (z. B. /tv-dashboard/uebersicht) oder eine ganze URL.",
           "freeze_after": "Sekunden ohne Zuschauer, bis der Dashboard-Reiter ruht (leere Seite, spart CPU). 0 = nie.",
           "home_after": "Nach einer Moonlight-Pause von so vielen Sekunden beginnt der Stream wieder mit der Startansicht (wie Loxone nach 5 Minuten).",
           "raster_threads": "Chromium-Zeichen-Threads (1–4). 4 macht Pop-ups deutlich schneller.",
@@ -135,7 +138,7 @@
       "name_taken": "Dieser Name ist schon vergeben.",
       "lg_token_invalid": "LG hat dieses Token nicht angenommen. Bitte erneut aus dem webOS Dev Manager kopieren.",
       "lg_token_not_lg": "Das Session-Token wird nur bei LG-Fernsehern verwendet.",
-      "invalid_url": "Die Adresse muss mit http:// oder https:// beginnen."
+      "invalid_url": "Keine gültige Adresse. Beispiele: 192.168.1.160, loxone.local, https://example.com/app"
     },
     "abort": {
       "too_many_streamers": "Höchstens 8 Streamer je VM."
@@ -222,6 +225,21 @@
       },
       "show_link_on_tv": {
         "name": "{link} am Fernseher zeigen"
+      }
+    },
+    "event": {
+      "remote": {
+        "name": "Fernbedienung",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "blue": "Blau",
+              "green": "Grün",
+              "play_pause": "Wiedergabe/Pause",
+              "stop": "Stopp"
+            }
+          }
+        }
       }
     }
   },

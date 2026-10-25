@@ -11,6 +11,7 @@ from homeassistant.components import webhook
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
@@ -25,13 +26,14 @@ from .const import (
     DEFAULT_LG_RENEW_TIME,
     DOMAIN,
     EVENT_KEY,
+    SIGNAL_KEY,
 )
 from .coordinator import StreamerCoordinator, TvStreamerData
 from .streamer_files import files_manifest, load_streamer_files
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.EVENT, Platform.SENSOR]
 
 type TvStreamerConfigEntry = ConfigEntry[TvStreamerData]
 
@@ -109,10 +111,9 @@ def _push(hass: HomeAssistant, webhook_id: str, payload: dict[str, Any]) -> None
         coordinator = entry.runtime_data.coordinators.get(str(payload.get("name", "")))
         if coordinator and "taste" in payload:
             # A remote key from the patched Moonlight app – fire an event for automations, no status update.
-            hass.bus.async_fire(
-                EVENT_KEY,
-                {"streamer": coordinator.streamer[CONF_ID], "key": str(payload["taste"])[:24], "entry_id": entry.entry_id},
-            )
+            key = str(payload["taste"])[:24]
+            hass.bus.async_fire(EVENT_KEY, {"streamer": coordinator.streamer[CONF_ID], "key": key, "entry_id": entry.entry_id})
+            async_dispatcher_send(hass, SIGNAL_KEY.format(entry.entry_id, coordinator.streamer[CONF_ID]), key)
         elif coordinator:
             coordinator.async_push(payload)
         else:

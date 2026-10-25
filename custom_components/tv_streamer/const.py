@@ -97,7 +97,8 @@ API_FILES: Final = API_BASE + "/{entry_id}/files"
 API_FILE: Final = API_BASE + "/{entry_id}/files/{name}"
 
 SCAN_INTERVAL_SECONDS: Final = 60
-SIGNAL_PUSH: Final = DOMAIN + "_push_{}"
+SIGNAL_KEY: Final = DOMAIN + "_key_{}_{}"  # entry id, streamer id
+REMOTE_KEYS: Final = ["blue", "green", "play_pause", "stop"]
 EVENT_KEY: Final = "tv_streamer_key"  # remote key from the patched Moonlight app
 
 # Commands understood by server.py (POST /api/cmd {"c": …})

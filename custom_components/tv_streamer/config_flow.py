@@ -18,6 +18,7 @@ from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
+from yarl import URL
 
 from .const import (
     API_UPDATE_SCRIPT,
@@ -68,7 +69,6 @@ from .const import (
 from .lg import LgError, async_check, token_from_input
 
 TEXT = selector.TextSelector()
-URL = selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.URL))
 PASSWORD = selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD))
 
 
@@ -92,6 +92,25 @@ def _default_ha_url(hass: HomeAssistant) -> str:
         return "http://homeassistant.local:8123"
 
 
+def normalize_url(value: str, base: str | None = None) -> str | None:
+    """Accept `192.168.1.160`, `loxone.local/app`, `/tv-dashboard/home` (with base) or a full URL; None if unusable."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    if value.startswith("/") and base:
+        return base.rstrip("/") + value
+    if "://" not in value:
+        value = "http://" + value
+    try:
+        url = URL(value)
+    except ValueError:
+        return None
+    if url.scheme not in ("http", "https") or not url.host:
+        return None
+    text = str(url)
+    return text if url.raw_path not in ("", "/") or text.endswith("/") else text + "/"
+
+
 def default_options(hass: HomeAssistant, ha_url: str) -> dict[str, Any]:
     return {
         CONF_STREAMERS: [],
@@ -111,7 +130,7 @@ def _vm_schema(host: str = "", ha_url: str = "") -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=host): TEXT,
-            vol.Required(CONF_HA_URL, default=ha_url): URL,
+            vol.Required(CONF_HA_URL, default=ha_url): TEXT,
         }
     )
 
@@ -169,13 +188,18 @@ class TvStreamerConfigFlow(ConfigFlow, domain=DOMAIN):
         return TvStreamerOptionsFlow()
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
+            ha_url = (normalize_url(user_input[CONF_HA_URL]) or "").rstrip("/")
+            if not ha_url:
+                errors[CONF_HA_URL] = "invalid_url"
+                return self.async_show_form(step_id="user", data_schema=_vm_schema(host, user_input[CONF_HA_URL]), errors=errors)
             await self.async_set_unique_id(host.lower())
             self._abort_if_unique_id_configured()
             self._data = {
                 CONF_HOST: host,
-                CONF_HA_URL: user_input[CONF_HA_URL].strip().rstrip("/"),
+                CONF_HA_URL: ha_url,
                 CONF_VM_TOKEN: secrets.token_urlsafe(32),
                 CONF_WEBHOOK_ID: webhook.async_generate_id(),
             }
@@ -193,7 +217,7 @@ class TvStreamerConfigFlow(ConfigFlow, domain=DOMAIN):
                 entry,
                 data_updates={
                     CONF_HOST: user_input[CONF_HOST].strip(),
-                    CONF_HA_URL: user_input[CONF_HA_URL].strip().rstrip("/"),
+                    CONF_HA_URL: (normalize_url(user_input[CONF_HA_URL]) or entry.data[CONF_HA_URL]).rstrip("/"),
                 },
             )
         return self.async_show_form(
@@ -227,7 +251,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
         menu += ["add_link"]
         if self._options[CONF_LINKS]:
             menu += ["remove_link"]
-        menu += ["settings", "vm_setup", "save"]
+        menu += ["settings", "vm_setup"]
         return self.async_show_menu(
             step_id="init",
             menu_options=menu,
@@ -237,7 +261,8 @@ class TvStreamerOptionsFlow(OptionsFlow):
             },
         )
 
-    async def async_step_save(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    def _save(self) -> ConfigFlowResult:
+        """Every finished change is stored at once (the integration reloads, the VM follows within 5 minutes)."""
         return self.async_create_entry(data=self._options)
 
     # Streamers ----------------------------------------------------------------------
@@ -302,7 +327,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
                     self._streamers.append(values)
                 else:
                     self._streamers[self._streamers.index(self._find(self._edit_id))] = values
-                return await self.async_step_init()
+                return self._save()
         return self.async_show_form(
             step_id="streamer",
             data_schema=_streamer_schema(self._preset if user_input is None else {**self._preset, **user_input}),
@@ -312,7 +337,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
     async def async_step_remove_streamer(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             self._streamers.remove(self._find(user_input[CONF_ID]))
-            return await self.async_step_init()
+            return self._save()
         return self.async_show_form(step_id="remove_streamer", data_schema=self._choose_streamer_schema())
 
     def _choose_streamer_schema(self) -> vol.Schema:
@@ -342,10 +367,10 @@ class TvStreamerOptionsFlow(OptionsFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             name = slugify(user_input[CONF_NAME])
-            url = user_input[CONF_URL].strip()
+            url = normalize_url(user_input[CONF_URL])
             if not name or any(link[CONF_NAME] == name for link in self._options[CONF_LINKS]):
                 errors[CONF_NAME] = "name_taken"
-            elif not url.startswith(("http://", "https://")):
+            elif url is None:
                 errors[CONF_URL] = "invalid_url"
             else:
                 if user_input[CONF_REMEMBER_LOGIN]:  # server.py fills in the login of one tab only
@@ -359,13 +384,13 @@ class TvStreamerOptionsFlow(OptionsFlow):
                         CONF_NO_RELOAD: user_input[CONF_NO_RELOAD],
                     }
                 )
-                return await self.async_step_init()
+                return self._save()
         return self.async_show_form(
             step_id="add_link",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_NAME): TEXT,
-                    vol.Required(CONF_URL): URL,
+                    vol.Required(CONF_URL): TEXT,
                     vol.Required(CONF_REMEMBER_LOGIN, default=False): selector.BooleanSelector(),
                     vol.Required(CONF_NO_RELOAD, default=False): selector.BooleanSelector(),
                 }
@@ -378,7 +403,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
             self._options[CONF_LINKS] = [
                 link for link in self._options[CONF_LINKS] if link[CONF_NAME] != user_input[CONF_NAME]
             ]
-            return await self.async_step_init()
+            return self._save()
         return self.async_show_form(
             step_id="remove_link",
             data_schema=vol.Schema(
@@ -393,17 +418,23 @@ class TvStreamerOptionsFlow(OptionsFlow):
     # General settings --------------------------------------------------------------------
 
     async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
             for key in (CONF_FREEZE_AFTER, CONF_HOME_AFTER, CONF_RASTER_THREADS):
                 user_input[key] = int(user_input[key])
-            self._options.update(user_input)
-            return await self.async_step_init()
+            start_url = normalize_url(user_input[CONF_START_URL], self.config_entry.data[CONF_HA_URL])
+            if start_url is None:
+                errors[CONF_START_URL] = "invalid_url"
+            else:
+                user_input[CONF_START_URL] = start_url
+                self._options.update(user_input)
+                return self._save()
         o = self._options
         return self.async_show_form(
             step_id="settings",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_START_URL, default=o[CONF_START_URL]): URL,
+                    vol.Required(CONF_START_URL, default=o[CONF_START_URL]): TEXT,
                     vol.Required(CONF_FREEZE_AFTER, default=o[CONF_FREEZE_AFTER]): _number(0, 3600, 1, "s"),
                     vol.Required(CONF_HOME_AFTER, default=o[CONF_HOME_AFTER]): _number(0, 3600, 1, "s"),
                     vol.Required(CONF_RASTER_THREADS, default=o[CONF_RASTER_THREADS]): _number(1, 4),
@@ -413,6 +444,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
                     vol.Required(CONF_TIMEZONE, default=o[CONF_TIMEZONE]): TEXT,
                 }
             ),
+            errors=errors,
         )
 
     # VM setup ----------------------------------------------------------------------
