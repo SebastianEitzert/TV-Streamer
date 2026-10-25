@@ -2,7 +2,7 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
-## 0.4.0 – unreleased
+## 0.4.0 – 2026-10-25
 - `moonlight/`: patched Moonlight for webOS (blue/green/play-pause/stop to the host, pointer back after arrow keys),
   built by a GitHub Action from the upstream release v1.6.37.
 - Streamer: blue = Home Assistant, green = first extra tab, every remote key also fires the Home Assistant event
