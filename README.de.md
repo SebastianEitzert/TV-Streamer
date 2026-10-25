@@ -35,6 +35,21 @@ Offizielle Anleitung: **[Proxmox-VE-Installation](https://pve.proxmox.com/wiki/I
 Größe der Streamer-VM: je Fernseher etwa 2 CPU-Kerne und 2 GB RAM bei Software-Kodierung mit 1080p/1440p.
 4K ist für Software-Kodierung zu viel.
 
+#### Grundeinstellungen in Proxmox (einmalig nach der Installation)
+
+- **Paketquellen:** ohne Abo auf das *no-subscription*-Repository umstellen (*Knoten → Updates → Repositories*:
+  `enterprise` deaktivieren, `No-Subscription` hinzufügen), danach *Updates → Aktualisieren → Upgrade*.
+- **Feste IP-Adresse des Proxmox-Hosts** – bei der Installation festlegen; später unter *Knoten → System → Netzwerk*.
+- **Netzwerk-Bridge:** Der Installer legt `vmbr0` auf dem LAN-Anschluss an. Die Streamer-VM muss im selben Netz wie die
+  Fernseher hängen (kein NAT, kein VLAN dazwischen, außer es ist geroutet) – Moonlight und Wake on LAN brauchen das LAN.
+- **Speicher:** `local-lvm` (oder ZFS) für die VM-Platten. Das VM-Skript ergänzt am Speicher `local` den Inhaltstyp
+  *Snippets* selbst; von Hand: *Rechenzentrum → Storage → local → Bearbeiten → Inhalt: Snippets*.
+- **Zeitzone:** *Knoten → System → Zeit* (die VM bekommt ihre Zeitzone aus den Einstellungen der Integration).
+- **Sicherungen (optional):** *Rechenzentrum → Backup → Hinzufügen*. Die Streamer-VM kann draußen bleiben – ihre
+  Konfiguration stellt die Integration wieder her; nur Anmeldungen und Moonlight-Kopplungen liegen in der VM (Docker-Volumes).
+- **Home Assistant auf demselben Rechner:** Home Assistant Vorrang geben – das Skript setzt das CPU-Gewicht des Streamers
+  auf 50 (`cpuunits`, die HA-VM hat den Standard 100); bei voller CPU gewinnt so immer Home Assistant.
+
 ### 2. Streamer-VM anlegen
 
 In der Proxmox-Oberfläche **Knoten → Shell** öffnen und ausführen:
@@ -48,6 +63,34 @@ Das Skript fragt VM-ID, IP-Adresse (oder DHCP), Bridge, Speicher, Kerne, RAM und
 das Debian-13-Cloud-Image (mit Prüfsumme), legt die VM an und installiert beim ersten Start Docker (etwa 5 Minuten).
 
 Gib der VM eine **feste IP-Adresse** (im Skript oder als DHCP-Reservierung im Router) – Fernseher und Moonlight verbinden sich dorthin.
+
+#### Was das Skript einstellt – bzw. wie man die VM von Hand anlegt
+
+| Einstellung | Wert | Hinweis |
+|---|---|---|
+| Betriebssystem | Debian 13 *genericcloud* (`qcow2`, als Platte importiert) | klein, mit cloud-init |
+| Maschine / BIOS | `q35`, SeaBIOS | |
+| CPU | Typ **host**, 4 Kerne (2 Fernseher: **8**), CPU-Gewicht **50** | `host` gibt dem Software-Kodierer alle CPU-Befehle (AVX2) |
+| Arbeitsspeicher | 4096 MB, Ballooning mind. 2048 (2 Fernseher: **6144 MB**) | |
+| Platte | 20 GB, VirtIO SCSI single, *Discard* + *SSD-Emulation* + *IO-Thread* | |
+| Netzwerk | VirtIO an `vmbr0`, **feste IP** | |
+| Anzeige / Konsole | serielle Konsole (`serial0`, Anzeige *Serial terminal 0*) | Konsole in der Proxmox-Oberfläche per xterm.js |
+| QEMU Guest Agent | **an** | nötig für `qm guest exec` und `qm guest passwd` |
+| Beim Booten starten | **an** | |
+| Cloud-Init | Benutzer `tv` + Passwort, IP, Vendor-Snippet installiert Docker | |
+
+Von Hand: VM mit diesen Werten anlegen (*VM erstellen*, oder `qm create` / `qm importdisk` für das Cloud-Image), ein
+*CloudInit-Laufwerk* hinzufügen, im Reiter *Cloud-Init* Benutzer, Passwort und IP setzen, starten und Docker
+(`curl -fsSL https://get.docker.com | sh`) sowie `qemu-guest-agent` installieren.
+
+**CPU oder RAM später ändern:** `qm set <VMID> --cores 8 --memory 6144`, danach die VM in Proxmox **stoppen und starten**
+(`qm reboot <VMID>`) – ein Neustart innerhalb der VM übernimmt neue Hardware nicht.
+
+**VM-Passwort vergessen?** Auf dem Proxmox-Host: `qm guest passwd <VMID> tv`.
+
+**Grafikkarte:** Der Streamer kodiert in Software (x264) – kein Durchreichen einer GPU nötig. Ein Fernseher mit 1440p braucht
+etwa 1–1,5 Kerne. Eine Intel-iGPU zwischen Home Assistant OS und der VM zu teilen (SR-IOV) klappt nicht überall und ist
+nicht erforderlich.
 
 ### 3. Nichts auf die VM kopieren
 

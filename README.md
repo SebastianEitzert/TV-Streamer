@@ -34,6 +34,21 @@ Follow the official guide: **[Proxmox VE installation](https://pve.proxmox.com/w
 Sizing for the streamer VM: per TV about 2 CPU cores and 2 GB RAM with software encoding at 1080p/1440p.
 4K is too much for software encoding.
 
+#### Basic Proxmox settings (once, after installing)
+
+- **Package repositories:** without a subscription switch to the *no-subscription* repository
+  (*node → Updates → Repositories*: disable `enterprise`, add `No-Subscription`), then *Updates → Refresh → Upgrade*.
+- **Fixed IP address for the Proxmox host** – set during installation; change later in *node → System → Network*.
+- **Network bridge:** the installer creates `vmbr0` on your LAN port. The streamer VM must be on the same network as the
+  TVs (no NAT, no VLAN in between unless you route it) – Moonlight and Wake on LAN need the LAN.
+- **Storage:** `local-lvm` (or ZFS) for VM disks. The VM script adds the content type *Snippets* to the storage `local`
+  automatically; doing it by hand: *Datacenter → Storage → local → Edit → Content: Snippets*.
+- **Time zone:** *node → System → Time* (the VM takes its time zone from the integration settings).
+- **Backups (optional):** *Datacenter → Backup → Add*. The streamer VM can be left out – the integration recreates its
+  configuration, only logins and Moonlight pairings live in the VM (Docker volumes).
+- **Home Assistant on the same host:** give Home Assistant priority – the script sets the streamer's CPU weight to 50
+  (`cpuunits`, Home Assistant VM has the default 100), so HA always wins when the CPU is busy.
+
 ### 2. Create the streamer VM
 
 In the Proxmox web UI open **your node → Shell** and run:
@@ -47,6 +62,33 @@ The script asks for the VM ID, IP address (or DHCP), bridge, storage, cores, RAM
 downloads the Debian 13 cloud image (checksum verified), creates the VM and installs Docker on first boot (about 5 minutes).
 
 Give the VM a **fixed IP address** (in the script or as a DHCP reservation in your router) – TVs and Moonlight connect to it.
+
+#### What the script sets – or how to create the VM by hand
+
+| Setting | Value | Note |
+|---|---|---|
+| OS image | Debian 13 *genericcloud* (`qcow2`, imported as disk) | small, cloud-init ready |
+| Machine / BIOS | `q35`, SeaBIOS | |
+| CPU | type **host**, 4 cores (2 TVs: **8**), CPU units **50** | `host` gives the software encoder all CPU features (AVX2) |
+| Memory | 4096 MB, ballooning min. 2048 (2 TVs: **6144 MB**) | |
+| Disk | 20 GB, VirtIO SCSI single, *discard* + *SSD emulation* + *IO thread* | |
+| Network | VirtIO on `vmbr0`, **fixed IP** | |
+| Display / console | serial console (`serial0`, display *Serial terminal 0*) | console in the Proxmox UI via xterm.js |
+| QEMU guest agent | **on** | needed for `qm guest exec` and `qm guest passwd` |
+| Start at boot | **on** | |
+| Cloud-init | user `tv` + password, IP config, vendor snippet installing Docker | |
+
+By hand: create the VM with these values (*Create VM*, or `qm create` / `qm importdisk` for the cloud image), add a
+*CloudInit drive*, set user, password and IP in the *Cloud-Init* tab, start it and install Docker
+(`curl -fsSL https://get.docker.com | sh`) and `qemu-guest-agent`.
+
+**Change CPU or RAM later:** `qm set <VMID> --cores 8 --memory 6144`, then **stop and start** the VM from Proxmox
+(`qm reboot <VMID>`) – a reboot inside the VM does not apply new hardware.
+
+**Forgot the VM password?** On the Proxmox host: `qm guest passwd <VMID> tv`.
+
+**GPU:** the streamer encodes in software (x264) – no GPU passthrough needed. One TV at 1440p uses roughly 1–1.5 cores.
+Sharing an Intel iGPU between Home Assistant OS and the VM (SR-IOV) is not supported by every setup; it is not required.
 
 ### 3. Nothing to copy to the VM
 
