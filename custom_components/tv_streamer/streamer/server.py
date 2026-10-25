@@ -218,7 +218,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-24.37"
+FASSUNG = "2026-10-25.38"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -710,9 +710,11 @@ MOONLIGHT_JS = r"""(() => {
   const melde = (o) => { try { if (window.__tvWechsel) { window.__tvWechsel(JSON.stringify(o)); } } catch (e) {} };
   window.addEventListener('keydown', (e) => {
     /* Angepasstes Moonlight (Repo-Ordner moonlight/): Blau = F13, Grün = F14, Wiedergabe/Pause und Stopp als Medientasten */
-    if (e.key === 'F13' || e.key === 'F14' || e.key === 'MediaPlayPause' || e.key === 'MediaStop') {
+    /* e.code statt e.key: Unter X11 heißt F13 als Zeichen „XF86Tools“ und F14 „XF86Launch5“, der Tastencode bleibt F13/F14 */
+    const fb = ['F13', 'F14', 'MediaPlayPause', 'MediaStop'].find((k) => e.code === k || e.key === k);
+    if (fb) {
       e.preventDefault(); e.stopImmediatePropagation();
-      if (!e.repeat) { melde({ fernbedienung: e.key }); }
+      if (!e.repeat) { melde({ fernbedienung: fb }); }
       return;
     }
     if (e.key === 'PageUp' || e.key === 'PageDown') {
