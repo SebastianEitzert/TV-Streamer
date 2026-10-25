@@ -248,7 +248,8 @@ Achtung bei Firmware-Updates des Fernsehers: Sie können den Entwicklermodus zur
 
 ### 10. Prüfen
 
-Jeder Streamer ist ein Gerät mit Sensoren (Zustand, Zuschauer; bei MSE/WebRTC auch Verzögerung, Bildrate, Datenrate), den Binärsensoren
+Jeder Streamer ist ein Gerät mit Sensoren (Zustand, Zuschauer; bei MSE/WebRTC auch Verzögerung, Bildrate, Datenrate), dem Binärsensor
+**Am Fernseher** (der eigene Fernseher zeigt den Streamer gerade im Vordergrund – der richtige für Automationen), den Binärsensoren
 *Erreichbar* und *Moonlight-Stream* und Buttons (Startansicht, Neu laden, Zurück, Reiter zeigen, Developer-Modus verlängern).
 Lehnt LG eine Verlängerung ab, erscheint eine **Reparatur**, die ein neues Token abfragt.
 

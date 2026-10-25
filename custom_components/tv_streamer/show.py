@@ -190,6 +190,33 @@ async def _async_webos(hass: HomeAssistant, tv: str, command: str, payload: dict
     )
 
 
+def shown_on_tv(hass: HomeAssistant, coordinator: StreamerCoordinator) -> bool:
+    """Does the streamer's own TV show the streamer right now (in front, not just connected)?
+
+    Moonlight: the TV has the Moonlight app in front and Sunshine reports a stream – Moonlight keeps its stream open in
+    the background, and another paired device could be the one streaming, so the stream alone says little.
+    Browser (MSE/WebRTC): the TV has its web browser in front and one of the viewers has the TV's IP address.
+    """
+    tv = coordinator.streamer.get(CONF_MEDIA_PLAYER)
+    if not tv or _is_off(hass, tv):
+        return False
+    data = coordinator.data or {}
+    app = _app(hass, tv)
+    if coordinator.streamer.get(CONF_VIDEO_PATH) == VIDEO_MOONLIGHT:
+        moonlight = data.get("moonlight") or {}
+        return app == MOONLIGHT_APP and bool(isinstance(moonlight, dict) and moonlight.get("stream"))
+    ip = _tv_ip(hass, tv)
+    return app == BROWSER_APP and ip is not None and any(v.get("ip") == ip for v in data.get("zuschauer") or [])
+
+
+def _tv_ip(hass: HomeAssistant, entity_id: str) -> str | None:
+    """IP address of the TV as configured in the LG webOS integration."""
+    entry = er.async_get(hass).async_get(entity_id)
+    config_entry = hass.config_entries.async_get_entry(entry.config_entry_id) if entry and entry.config_entry_id else None
+    host = config_entry.data.get("host") if config_entry else None
+    return str(host) if host else None
+
+
 def _app(hass: HomeAssistant, entity_id: str) -> str | None:
     """The app the TV shows in front (webostv media player attribute app_id)."""
     state = hass.states.get(entity_id)

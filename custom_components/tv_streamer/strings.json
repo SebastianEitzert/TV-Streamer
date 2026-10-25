@@ -233,6 +233,9 @@
       },
       "moonlight_stream": {
         "name": "Moonlight stream"
+      },
+      "on_tv": {
+        "name": "On TV"
       }
     },
     "button": {

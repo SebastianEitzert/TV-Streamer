@@ -2,6 +2,12 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.4 – 2026-10-26
+- New binary sensor **On TV** per streamer: on only when the streamer's own TV shows it in front – Moonlight: the TV has
+  the Moonlight app in front and a stream runs (Moonlight keeps streams open in the background, and any paired device
+  can stream); browser: the TV has its web browser in front and a viewer has the TV's IP address (from the LG webOS
+  integration). *Viewers* and *Moonlight stream* still count every device.
+
 ## 0.4.3 – 2026-10-26
 - General settings: **green key** – first extra tab (default, as before), a chosen tab or nothing (only the Home
   Assistant event). Streamer 2026-10-26.42.

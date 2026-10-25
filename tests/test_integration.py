@@ -341,3 +341,47 @@ async def test_show_on_tv_starts_moonlight_when_another_app_is_in_front(hass: Ho
         await hass.services.async_call("button", "press", {"entity_id": "button.tv_streamer_bedroom_show_on_tv"}, blocking=True)
         await hass.async_block_till_done(wait_background_tasks=True)
     assert len(calls) == 1
+
+
+async def test_on_tv_sensor(hass: HomeAssistant, entry, aioclient_mock, hass_client_no_auth) -> None:
+    """"On TV" is only on when the streamer's own TV shows it in front – not another browser or a background stream."""
+    from homeassistant.helpers import entity_registry as er
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.tv_streamer.const import CONF_MEDIA_PLAYER, CONF_STREAMERS
+
+    reg = er.async_get(hass)
+    tv1 = reg.async_get_or_create("media_player", "webostv", "tv1", suggested_object_id="tv1").entity_id
+    lg2 = MockConfigEntry(domain="webostv", data={"host": "192.168.1.50"})
+    lg2.add_to_hass(hass)
+    tv2 = reg.async_get_or_create("media_player", "webostv", "tv2", suggested_object_id="tv2", config_entry=lg2).entity_id
+    hass.states.async_set(tv1, "on", {"app_id": "youtube.leanback.v4"})
+    hass.states.async_set(tv2, "on", {"app_id": "com.webos.app.browser"})
+    streamers = [dict(s) for s in entry.options[CONF_STREAMERS]]
+    streamers[0][CONF_MEDIA_PLAYER] = tv1  # bedroom: Moonlight
+    streamers[1][CONF_MEDIA_PLAYER] = tv2  # living room: WebRTC in the TV browser
+    hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_STREAMERS: streamers})
+
+    status = {**STATUS, "moonlight": {"an": True, "stream": True, "uuid": "U", "apps": {}}}
+    aioclient_mock.get("http://192.168.1.42:8091/api/status", json=status)
+    aioclient_mock.get("http://192.168.1.42:8092/api/status", json={**STATUS, "name": "living_room"})
+    aioclient_mock.get(LG_CHECK_URL, text=LG_OK)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    # Moonlight stream open, but YouTube in front
+    assert hass.states.get("binary_sensor.tv_streamer_bedroom_on_tv").state == "off"
+    hass.states.async_set(tv1, "on", {"app_id": "com.limelight.webos"})
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.tv_streamer_bedroom_on_tv").state == "on"
+
+    client = await hass_client_no_auth()
+    # a PC browser watches the living room streamer – not the TV
+    await client.post("/api/webhook/hook123", json={"name": "living_room", "zuschauer": [{"ip": "192.168.1.77"}]})
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.tv_streamer_living_room_on_tv").state == "off"
+    await client.post(
+        "/api/webhook/hook123", json={"name": "living_room", "zuschauer": [{"ip": "192.168.1.77"}, {"ip": "192.168.1.50"}]}
+    )
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.tv_streamer_living_room_on_tv").state == "on"
