@@ -161,7 +161,8 @@ der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 3
 #### 9.4 Session-Token für die automatische Verlängerung
 LG beendet den Entwicklermodus nach etwa 1000 Stunden und entfernt Moonlight, wenn die Sitzung nicht verlängert wird.
 
-1. Im Dev Manager den Fernseher wählen → **Info**. Die Seite zeigt die Restlaufzeit und die Knöpfe *Renew session* und
+1. Den Fernseher **einschalten** (der Dev Manager liest das Token per SSH vom Fernseher – er muss an und verbunden sein).
+   Im Dev Manager den Fernseher wählen → **Info**. Die Seite zeigt die Restlaufzeit und die Knöpfe *Renew session* und
    **Renew automatically…**.
 2. *Renew automatically…* zeigt die Verlängerungs-URL
    `https://developer.lge.com/secure/ResetDevModeSession.dev?sessionToken=…` – kopieren (ganze URL oder nur das Token).
@@ -169,6 +170,8 @@ LG beendet den Entwicklermodus nach etwa 1000 Stunden und entfernt Moonlight, we
    speichern. Die Integration prüft das Token sofort.
 
 Ohne Dev Manager lässt sich das Token per SSH am Fernseher lesen: `cat /var/luna/preferences/devmode_enabled`.
+Die tägliche Verlängerung selbst braucht den Fernseher nicht: Home Assistant ruft direkt den LG-Server auf, das klappt
+auch, wenn der Fernseher aus ist.
 Das Token ändert sich, wenn der Entwicklermodus aus- und wieder eingeschaltet wird – die Integration meldet dann eine
 **Reparatur**, die das neue abfragt.
 

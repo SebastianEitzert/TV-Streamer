@@ -158,7 +158,8 @@ so the TV needs LG's **developer mode**. This takes about 30 minutes once.
 #### 9.4 Session token for the automatic renewal
 LG ends the developer mode after about 1000 hours and removes Moonlight, unless the session is renewed.
 
-1. In the Dev Manager select the TV → **Info**. The page shows the remaining time and the buttons *Renew session* and
+1. Switch the TV **on** (the Dev Manager reads the token from the TV over SSH, so the TV must be on and connected).
+   In the Dev Manager select the TV → **Info**. The page shows the remaining time and the buttons *Renew session* and
    **Renew automatically…**.
 2. *Renew automatically…* shows the renewal URL
    `https://developer.lge.com/secure/ResetDevModeSession.dev?sessionToken=…` – copy it (the whole URL or just the token).
@@ -166,6 +167,7 @@ LG ends the developer mode after about 1000 hours and removes Moonlight, unless 
    The integration checks the token right away.
 
 Without the Dev Manager you can read the token on the TV via SSH: `cat /var/luna/preferences/devmode_enabled`.
+The daily renewal itself does not need the TV: Home Assistant calls LG's server directly, so it also works while the TV is off.
 The token changes when you switch the developer mode off and on again – the integration then raises a **repair** that
 asks for the new one.
 
