@@ -11,6 +11,8 @@ All notable changes to this project. Versions follow the `version` in `custom_co
   `play_pause` and `stop` – a clean automation trigger for the remote keys.
 - Options: every step is saved right away, the "Save" menu entry is gone.
 - Addresses without `http://` are accepted (`192.168.1.160`), the start view also as a bare path (`/dashboard-tv/home`).
+- Moonlight build: Play/Pause and Stop are sent as F15/F16 (Sunshine on Linux drops media keys); the app is called
+  "Moonlight TVS" so the patched build is easy to recognise. The streamer recognises the keys by key code.
 - Jarvis-style automations can use the "Show on TV" buttons instead of scripts.
 
 ## 0.3.1

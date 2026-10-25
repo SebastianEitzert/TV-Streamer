@@ -10,11 +10,15 @@ small patches in [`patches/`](patches/) against the upstream release in [`UPSTRE
 |---|---|---|---|
 | Blue | ignored while streaming | sends **F13** | show Home Assistant (already there: start page); HA event `tv_streamer_key` = `blue` |
 | Green | ignored while streaming | sends **F14** | show the first extra tab (e.g. Loxone); event `green` |
-| Play/Pause | ignored | sends **media play/pause** | event `play_pause` (use it in an automation, e.g. pause the music) |
-| Stop | ignored | sends **media stop** | event `stop` |
+| Play/Pause | ignored | sends **F15** (Sunshine on Linux drops media keys) | event `play_pause` (use it in an automation, e.g. pause the music) |
+| Stop | ignored | sends **F16** | event `stop` |
 | Arrow keys | pointer disappears until the remote is shaken | pointer comes back when the key is released | arrows go to the page (e.g. floor switch) |
 
 The app id stays `com.limelight.webos`, so it installs **over** the official app; host pairings and settings stay.
+In the TV's app list it is called **Moonlight TVS** – that is how you see the patched build is installed.
+
+**After installing, switch the TV off at the mains (or restart it).** If Moonlight was still loaded in the background,
+webOS keeps running the old version until then.
 
 ## Install
 1. Download `com.limelight.webos_<version>-tvstreamer_arm.ipk` from the
@@ -46,3 +50,5 @@ Angepasste Fassung von Moonlight TV für LG webOS. **Blau** und **Grün** gehen 
 zusätzlicher Reiter), **Wiedergabe/Pause** und **Stopp** lösen in Home Assistant das Ereignis `tv_streamer_key` aus, und der
 **Zeiger** ist nach den Pfeiltasten sofort wieder da, ohne die Fernbedienung zu schütteln. Installation über die offizielle
 App mit dem webOS Dev Manager (*Apps → Installieren*, Fernseher an und im Entwicklermodus) – Kopplung und Einstellungen bleiben.
+In der App-Liste heißt sie dann **Moonlight TVS**. **Danach den Fernseher einmal vom Strom nehmen** (oder neu starten) –
+sonst läuft ein im Hintergrund geladenes altes Moonlight weiter.

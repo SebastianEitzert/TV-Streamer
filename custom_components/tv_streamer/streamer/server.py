@@ -709,9 +709,10 @@ MOONLIGHT_JS = r"""(() => {
   }
   const melde = (o) => { try { if (window.__tvWechsel) { window.__tvWechsel(JSON.stringify(o)); } } catch (e) {} };
   window.addEventListener('keydown', (e) => {
-    /* Angepasstes Moonlight (Repo-Ordner moonlight/): Blau = F13, Grün = F14, Wiedergabe/Pause und Stopp als Medientasten */
+    /* Angepasstes Moonlight (Repo-Ordner moonlight/): Blau = F13, Grün = F14, Wiedergabe/Pause = F15, Stopp = F16
+       (Sunshine verwirft unter Linux die Medientasten; die werden trotzdem erkannt, falls sie einmal ankommen) */
     /* e.code statt e.key: Unter X11 heißt F13 als Zeichen „XF86Tools“ und F14 „XF86Launch5“, der Tastencode bleibt F13/F14 */
-    const fb = ['F13', 'F14', 'MediaPlayPause', 'MediaStop'].find((k) => e.code === k || e.key === k);
+    const fb = ['F13', 'F14', 'F15', 'F16', 'MediaPlayPause', 'MediaStop'].find((k) => e.code === k || e.key === k);
     if (fb) {
       e.preventDefault(); e.stopImmediatePropagation();
       if (!e.repeat) { melde({ fernbedienung: fb }); }
@@ -2857,7 +2858,7 @@ async def status(request):
 
 
 # Tasten des angepassten Moonlight (Repo-Ordner moonlight/) → Namen des Ereignisses tv_streamer_key in Home Assistant
-FERNBEDIENUNG = {"F13": "blue", "F14": "green", "MediaPlayPause": "play_pause", "MediaStop": "stop"}
+FERNBEDIENUNG = {"F13": "blue", "F14": "green", "F15": "play_pause", "F16": "stop", "MediaPlayPause": "play_pause", "MediaStop": "stop"}
 
 
 async def ha_taste(name):
