@@ -218,7 +218,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-25.39"
+FASSUNG = "2026-10-25.40"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -764,7 +764,9 @@ MOONLIGHT_JS = r"""(() => {
       const ha = document.querySelector('home-assistant');
       const r = ha && ha.shadowRoot;
       const dialog = r && Array.from(r.children).some((c) => /dialog/.test(c.localName));
-      if (!dialog && history.length > 1) { setTimeout(() => { if (!(location.hash && location.hash.length > 1)) history.back(); }, 120); }
+      /* .40: nicht selbst history.back() – das führte von der Startseite auf die leere Ruheseite (about:blank). Der Streamer
+         geht zurück wie der Zurück-Knopf: nie hinter die Startseite, leere Seiten und Fehlerseiten übersprungen. */
+      if (!dialog) { setTimeout(() => { if (!(location.hash && location.hash.length > 1)) melde({ zurueck: 1 }); }, 120); }
     } else if (e.key && e.key.length > 1) {
       melde({ taste: e.key, code: e.code });
     }
@@ -1047,6 +1049,9 @@ class Cdp:
                         ziel = folge[(i + d["richtung"]) % len(folge)]
                         log.info("Moonlight: Taste Bild %s – %s", "auf" if d["richtung"] > 0 else "ab", ziel)
                         asyncio.ensure_future(self.command("startansicht" if ziel == "home" else "link:" + ziel))   # .37o: HA immer mit Startansicht
+                    elif d.get("zurueck"):              # .40: Zurück-Taste aus Moonlight – geschützter Weg wie der Zurück-Knopf
+                        log.info("Moonlight: Taste Zurück")
+                        asyncio.ensure_future(self.back())
                     elif d.get("fernbedienung") in FERNBEDIENUNG:
                         name = FERNBEDIENUNG[d["fernbedienung"]]
                         log.info("Moonlight: Taste %s", name)
