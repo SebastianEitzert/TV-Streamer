@@ -165,3 +165,54 @@ async def test_config_and_options_flow(hass: HomeAssistant, aioclient_mock) -> N
     streamer = entry.options[CONF_STREAMERS][0]
     assert streamer["id"] == "kitchen" and streamer["index"] == 0 and streamer["lg_session_token"] == "tok"
     assert hass.states.get("sensor.tv_streamer_kitchen_state") is not None
+
+
+async def test_show_on_tv_wakes_and_starts_moonlight(hass: HomeAssistant, entry, aioclient_mock) -> None:
+    from unittest.mock import patch
+
+    from homeassistant.helpers import entity_registry as er
+
+    from custom_components.tv_streamer.const import CONF_MEDIA_PLAYER, CONF_STREAMERS, CONF_WAKE
+
+    tv = er.async_get(hass).async_get_or_create("media_player", "webostv", "tv1", suggested_object_id="tv1").entity_id
+    hass.states.async_set(tv, "off")
+    calls = []
+
+    async def wake(call):
+        calls.append(("wake", dict(call.data)))
+        hass.states.async_set(tv, "on")
+
+    async def webos(call):
+        calls.append(("webos", dict(call.data)))
+
+    hass.services.async_register("switch", "turn_on", wake)
+    hass.services.async_register("webostv", "command", webos)
+    streamers = [dict(s) for s in entry.options[CONF_STREAMERS]]
+    streamers[0][CONF_MEDIA_PLAYER] = tv
+    streamers[0][CONF_WAKE] = "switch.wol_tv1"
+    hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_STREAMERS: streamers})
+
+    status = {**STATUS, "moonlight": {"an": True, "stream": False, "uuid": "UUID-1", "apps": {"Home Assistant": 42, "Loxone": 7}}}
+    aioclient_mock.get("http://192.168.1.42:8091/api/status", json=status)
+    aioclient_mock.get("http://192.168.1.42:8092/api/status", json={**STATUS, "name": "living_room"})
+    aioclient_mock.post("http://192.168.1.42:8091/api/cmd", json={"ok": True})
+    aioclient_mock.get(LG_CHECK_URL, text=LG_OK)
+    with patch("custom_components.tv_streamer.show.WAKE_SETTLE", 0):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        await hass.services.async_call(
+            "button", "press", {"entity_id": "button.tv_streamer_bedroom_show_loxone_on_tv"}, blocking=True
+        )
+        await hass.async_block_till_done()
+
+    assert calls[0] == ("wake", {"entity_id": "switch.wol_tv1"})
+    assert calls[1] == (
+        "webos",
+        {
+            "entity_id": tv,
+            "command": "system.launcher/launch",
+            "payload": {"id": "com.limelight.webos", "params": {"host_uuid": "UUID-1", "host_app_id": 7}},
+        },
+    )
+    posted = [c[2] for c in aioclient_mock.mock_calls if str(c[1]).endswith("/api/cmd")]
+    assert {"c": "link:loxone"} in posted

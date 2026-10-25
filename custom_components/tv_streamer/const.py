@@ -37,6 +37,12 @@ CONF_HEIGHT: Final = "height"
 CONF_ZOOM: Final = "zoom"
 CONF_BITRATE: Final = "bitrate"
 CONF_LG_TOKEN: Final = "lg_session_token"
+CONF_WAKE: Final = "wake_entity"  # button/script that switches the TV on (e.g. Wake on LAN)
+WAKE_DOMAINS: Final = ["button", "input_button", "script", "switch"]
+TV_OFF_STATES: Final = {"off", "unavailable", "unknown", "standby"}
+WAKE_TIMEOUT: Final = 90  # s until the TV must report itself on
+WAKE_SETTLE: Final = 8  # s webOS needs after switching on before it starts apps
+MOONLIGHT_APP: Final = "com.limelight.webos"
 
 # Per link (extra browser tabs, e.g. a Loxone web interface)
 CONF_URL: Final = "url"

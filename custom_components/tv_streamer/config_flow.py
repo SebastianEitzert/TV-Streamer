@@ -47,6 +47,7 @@ from .const import (
     CONF_URL,
     CONF_VIDEO_PATH,
     CONF_VM_TOKEN,
+    CONF_WAKE,
     CONF_WEBHOOK_ID,
     CONF_WIDTH,
     CONF_ZOOM,
@@ -62,6 +63,7 @@ from .const import (
     TV_PRESETS,
     TV_TYPES,
     VIDEO_PATHS,
+    WAKE_DOMAINS,
 )
 from .lg import LgError, async_check, token_from_input
 
@@ -126,6 +128,9 @@ def _streamer_schema(values: dict[str, Any]) -> vol.Schema:
             vol.Optional(CONF_AREA, description=sv(CONF_AREA)): selector.AreaSelector(),
             vol.Optional(CONF_MEDIA_PLAYER, description=sv(CONF_MEDIA_PLAYER)): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="media_player")
+            ),
+            vol.Optional(CONF_WAKE, description=sv(CONF_WAKE)): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=WAKE_DOMAINS)
             ),
             vol.Required(CONF_TV_TYPE, default=values.get(CONF_TV_TYPE, TV_OTHER)): _select(TV_TYPES, CONF_TV_TYPE),
             vol.Required(CONF_VIDEO_PATH, default=values[CONF_VIDEO_PATH]): _select(VIDEO_PATHS, CONF_VIDEO_PATH),
@@ -272,7 +277,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             values = {**self._preset, **user_input}
-            for key in (CONF_AREA, CONF_MEDIA_PLAYER, CONF_LG_TOKEN):
+            for key in (CONF_AREA, CONF_MEDIA_PLAYER, CONF_WAKE, CONF_LG_TOKEN):
                 if key not in user_input:
                     values.pop(key, None)
             new_id = self._edit_id or slugify(values[CONF_NAME])

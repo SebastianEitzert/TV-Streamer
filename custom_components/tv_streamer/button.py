@@ -11,9 +11,10 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import slugify
 
 from . import TvStreamerConfigEntry
-from .const import CMD_BACK, CMD_RELOAD, CMD_START_VIEW, CONF_LINKS, CONF_NAME, DOMAIN
+from .const import CMD_BACK, CMD_RELOAD, CMD_START_VIEW, CONF_LINKS, CONF_MEDIA_PLAYER, CONF_NAME, DOMAIN
 from .coordinator import StreamerCoordinator
 from .entity import TvStreamerEntity
+from .show import async_show_on_tv, check_can_show
 
 
 async def async_setup_entry(
@@ -28,6 +29,9 @@ async def async_setup_entry(
         ]
         for link in entry.options.get(CONF_LINKS, []):
             entities.append(LinkButton(coordinator, link[CONF_NAME]))
+        if coordinator.streamer.get(CONF_MEDIA_PLAYER):
+            entities.append(ShowOnTvButton(coordinator, None))
+            entities += [ShowOnTvButton(coordinator, link[CONF_NAME]) for link in entry.options.get(CONF_LINKS, [])]
         if coordinator.lg_token:
             entities.append(LgRenewButton(coordinator))
     async_add_entities(entities)
@@ -54,6 +58,24 @@ class LinkButton(CommandButton):
         super().__init__(coordinator, f"link_{slugify(link)}", f"link:{link}")
         self._attr_translation_key = "link"
         self._attr_translation_placeholders = {"link": link}
+
+
+class ShowOnTvButton(TvStreamerEntity, ButtonEntity):
+    """Switch the TV on if needed and show the start view or an extra tab there."""
+
+    def __init__(self, coordinator: StreamerCoordinator, link: str | None) -> None:
+        super().__init__(coordinator, f"show_link_on_tv_{slugify(link)}" if link else "show_on_tv")
+        self._link = link
+        if link:
+            self._attr_translation_key = "show_link_on_tv"
+            self._attr_translation_placeholders = {"link": link}
+
+    async def async_press(self) -> None:
+        check_can_show(self.hass, self.coordinator)
+        # Waking the TV can take a minute and a half – do not block the button press.
+        self.coordinator.config_entry.async_create_background_task(
+            self.hass, async_show_on_tv(self.hass, self.coordinator, self._link), f"{DOMAIN} show on tv"
+        )
 
 
 class LgRenewButton(TvStreamerEntity, ButtonEntity):

@@ -52,12 +52,16 @@
       },
       "edit_streamer": {
         "title": "Streamer bearbeiten",
-        "data": { "id": "Streamer" }
+        "data": {
+          "id": "Streamer"
+        }
       },
       "remove_streamer": {
         "title": "Streamer entfernen",
         "description": "Der Container wird beim nächsten Update der VM entfernt. Das Browser-Profil (Anmeldungen) bleibt im Docker-Volume.",
-        "data": { "id": "Streamer" }
+        "data": {
+          "id": "Streamer"
+        }
       },
       "streamer": {
         "title": "Streamer-Einstellungen",
@@ -65,6 +69,7 @@
           "name": "Name",
           "area": "Raum",
           "media_player": "Fernseher (Media Player)",
+          "wake_entity": "Einschalten mit (Wake on LAN)",
           "tv_type": "Fernsehertyp",
           "video_path": "Bildweg",
           "width": "Breite",
@@ -77,7 +82,8 @@
           "video_path": "MSE: schärfstes Bild im Fernseher-Browser. WebRTC: geringste Verzögerung (nicht bei webOS 4). Moonlight: Der Fernseher nutzt die Moonlight-App, die VM Sunshine – schnellste Reaktion.",
           "width": "Bildgröße, die der Browser zeichnet. webOS 4: 1920×1080, webOS 5 und neuer: 2560×1440. 4K ist für Software-Kodierung zu viel.",
           "zoom": "Seitenzoom. Seitengröße in Punkten = Breite ÷ Zoom (2560 bei 1,67 → 1533 Punkte).",
-          "lg_session_token": "Nur für LG-Fernseher mit Moonlight (Developer-Modus). Token oder die ganze Verlängerungs-URL aus dem webOS Dev Manager einfügen. Home Assistant verlängert die Sitzung täglich."
+          "lg_session_token": "Nur für LG-Fernseher mit Moonlight (Developer-Modus). Token oder die ganze Verlängerungs-URL aus dem webOS Dev Manager einfügen. Home Assistant verlängert die Sitzung täglich.",
+          "wake_entity": "Button oder Skript, das den Fernseher einschaltet, z. B. ein Wake-on-LAN-Button. Nutzt „Am Fernseher zeigen“, wenn der Fernseher aus ist."
         }
       },
       "add_link": {
@@ -96,7 +102,9 @@
       },
       "remove_link": {
         "title": "Reiter entfernen",
-        "data": { "name": "Reiter" }
+        "data": {
+          "name": "Reiter"
+        }
       },
       "settings": {
         "title": "Allgemeine Einstellungen",
@@ -154,27 +162,67 @@
     "sensor": {
       "state": {
         "name": "Zustand",
-        "state": { "showing": "Zeigt", "resting": "Ruht", "ready": "Bereit" }
+        "state": {
+          "showing": "Zeigt",
+          "resting": "Ruht",
+          "ready": "Bereit"
+        }
       },
-      "viewers": { "name": "Zuschauer" },
-      "latency": { "name": "Verzögerung" },
-      "frame_rate": { "name": "Bildrate" },
-      "data_rate": { "name": "Datenrate" },
-      "tab": { "name": "Reiter" },
-      "version": { "name": "Fassung" },
-      "lg_devmode_expires": { "name": "Developer-Modus endet" },
-      "lg_devmode_last_renewal": { "name": "Developer-Modus zuletzt verlängert" }
+      "viewers": {
+        "name": "Zuschauer"
+      },
+      "latency": {
+        "name": "Verzögerung"
+      },
+      "frame_rate": {
+        "name": "Bildrate"
+      },
+      "data_rate": {
+        "name": "Datenrate"
+      },
+      "tab": {
+        "name": "Reiter"
+      },
+      "version": {
+        "name": "Fassung"
+      },
+      "lg_devmode_expires": {
+        "name": "Developer-Modus endet"
+      },
+      "lg_devmode_last_renewal": {
+        "name": "Developer-Modus zuletzt verlängert"
+      }
     },
     "binary_sensor": {
-      "reachable": { "name": "Erreichbar" },
-      "moonlight_stream": { "name": "Moonlight-Stream" }
+      "reachable": {
+        "name": "Erreichbar"
+      },
+      "moonlight_stream": {
+        "name": "Moonlight-Stream"
+      }
     },
     "button": {
-      "start_view": { "name": "Startansicht" },
-      "reload": { "name": "Neu laden" },
-      "back": { "name": "Zurück" },
-      "link": { "name": "{link} zeigen" },
-      "lg_devmode_renew": { "name": "Developer-Modus verlängern" }
+      "start_view": {
+        "name": "Startansicht"
+      },
+      "reload": {
+        "name": "Neu laden"
+      },
+      "back": {
+        "name": "Zurück"
+      },
+      "link": {
+        "name": "{link} zeigen"
+      },
+      "lg_devmode_renew": {
+        "name": "Developer-Modus verlängern"
+      },
+      "show_on_tv": {
+        "name": "Am Fernseher zeigen"
+      },
+      "show_link_on_tv": {
+        "name": "{link} am Fernseher zeigen"
+      }
     }
   },
   "issues": {
@@ -185,7 +233,9 @@
           "init": {
             "title": "Neues Session-Token für {name}",
             "description": "LG hat die Developer-Mode-Sitzung nicht verlängert. Ohne Verlängerung entfernt der Fernseher Moonlight, wenn die Sitzung abläuft.\n\nDie Developer-Mode-App am Fernseher oder den webOS Dev Manager öffnen, das Session-Token (oder die Verlängerungs-URL) kopieren und hier einfügen.",
-            "data": { "lg_session_token": "Session-Token oder Verlängerungs-URL" }
+            "data": {
+              "lg_session_token": "Session-Token oder Verlängerungs-URL"
+            }
           }
         },
         "error": {
@@ -201,6 +251,12 @@
   "exceptions": {
     "lg_renew_failed": {
       "message": "Der LG-Developer-Modus von {name} konnte nicht verlängert werden. Siehe Einstellungen → Reparaturen."
+    },
+    "no_tv": {
+      "message": "Für {name} ist kein Fernseher (Media Player) eingetragen. Bitte in den Streamer-Einstellungen ergänzen."
+    },
+    "tv_off": {
+      "message": "Der Fernseher von {name} ist aus und es ist kein Einschalt-Button (Wake on LAN) eingetragen."
     }
   }
 }

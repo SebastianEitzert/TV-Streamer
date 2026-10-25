@@ -52,12 +52,16 @@
       },
       "edit_streamer": {
         "title": "Edit streamer",
-        "data": { "id": "Streamer" }
+        "data": {
+          "id": "Streamer"
+        }
       },
       "remove_streamer": {
         "title": "Remove streamer",
         "description": "The container is removed on the next update of the VM. Its browser profile (logins) stays in the Docker volume.",
-        "data": { "id": "Streamer" }
+        "data": {
+          "id": "Streamer"
+        }
       },
       "streamer": {
         "title": "Streamer settings",
@@ -65,6 +69,7 @@
           "name": "Name",
           "area": "Room",
           "media_player": "TV (media player)",
+          "wake_entity": "Switch on with (Wake on LAN)",
           "tv_type": "TV type",
           "video_path": "Video path",
           "width": "Width",
@@ -77,7 +82,8 @@
           "video_path": "MSE: sharpest picture in the TV browser. WebRTC: lowest delay (not on webOS 4). Moonlight: the TV runs the Moonlight app, the VM runs Sunshine – fastest reaction.",
           "width": "Picture size the browser draws. webOS 4 TVs: 1920×1080, webOS 5 and newer: 2560×1440. 4K is too much for software encoding.",
           "zoom": "Page zoom. Page size in points = width ÷ zoom (2560 at 1.67 → 1533 points).",
-          "lg_session_token": "Only for LG TVs with Moonlight (developer mode). Paste the token or the whole renewal URL from the webOS Dev Manager. Home Assistant renews the session every day."
+          "lg_session_token": "Only for LG TVs with Moonlight (developer mode). Paste the token or the whole renewal URL from the webOS Dev Manager. Home Assistant renews the session every day.",
+          "wake_entity": "Button or script that switches the TV on, e.g. a Wake on LAN button. Used by \"Show on TV\" when the TV is off."
         }
       },
       "add_link": {
@@ -96,7 +102,9 @@
       },
       "remove_link": {
         "title": "Remove extra tab",
-        "data": { "name": "Tab" }
+        "data": {
+          "name": "Tab"
+        }
       },
       "settings": {
         "title": "General settings",
@@ -154,27 +162,67 @@
     "sensor": {
       "state": {
         "name": "State",
-        "state": { "showing": "Showing", "resting": "Resting", "ready": "Ready" }
+        "state": {
+          "showing": "Showing",
+          "resting": "Resting",
+          "ready": "Ready"
+        }
       },
-      "viewers": { "name": "Viewers" },
-      "latency": { "name": "Latency" },
-      "frame_rate": { "name": "Frame rate" },
-      "data_rate": { "name": "Data rate" },
-      "tab": { "name": "Tab" },
-      "version": { "name": "Version" },
-      "lg_devmode_expires": { "name": "Developer mode expires" },
-      "lg_devmode_last_renewal": { "name": "Developer mode last renewal" }
+      "viewers": {
+        "name": "Viewers"
+      },
+      "latency": {
+        "name": "Latency"
+      },
+      "frame_rate": {
+        "name": "Frame rate"
+      },
+      "data_rate": {
+        "name": "Data rate"
+      },
+      "tab": {
+        "name": "Tab"
+      },
+      "version": {
+        "name": "Version"
+      },
+      "lg_devmode_expires": {
+        "name": "Developer mode expires"
+      },
+      "lg_devmode_last_renewal": {
+        "name": "Developer mode last renewal"
+      }
     },
     "binary_sensor": {
-      "reachable": { "name": "Reachable" },
-      "moonlight_stream": { "name": "Moonlight stream" }
+      "reachable": {
+        "name": "Reachable"
+      },
+      "moonlight_stream": {
+        "name": "Moonlight stream"
+      }
     },
     "button": {
-      "start_view": { "name": "Start view" },
-      "reload": { "name": "Reload" },
-      "back": { "name": "Back" },
-      "link": { "name": "Show {link}" },
-      "lg_devmode_renew": { "name": "Renew developer mode" }
+      "start_view": {
+        "name": "Start view"
+      },
+      "reload": {
+        "name": "Reload"
+      },
+      "back": {
+        "name": "Back"
+      },
+      "link": {
+        "name": "Show {link}"
+      },
+      "lg_devmode_renew": {
+        "name": "Renew developer mode"
+      },
+      "show_on_tv": {
+        "name": "Show on TV"
+      },
+      "show_link_on_tv": {
+        "name": "Show {link} on TV"
+      }
     }
   },
   "issues": {
@@ -185,7 +233,9 @@
           "init": {
             "title": "New session token for {name}",
             "description": "LG did not renew the developer mode session. Without renewal, the TV removes Moonlight after the session ends.\n\nOpen the Developer Mode app on the TV or the webOS Dev Manager, copy the session token (or the renewal URL) and paste it here.",
-            "data": { "lg_session_token": "Session token or renewal URL" }
+            "data": {
+              "lg_session_token": "Session token or renewal URL"
+            }
           }
         },
         "error": {
@@ -201,6 +251,12 @@
   "exceptions": {
     "lg_renew_failed": {
       "message": "LG developer mode of {name} could not be renewed. See Settings → Repairs."
+    },
+    "no_tv": {
+      "message": "No TV (media player) is set for {name}. Add it in the streamer settings."
+    },
+    "tv_off": {
+      "message": "The TV of {name} is off and no switch-on button (Wake on LAN) is set."
     }
   }
 }
