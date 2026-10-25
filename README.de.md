@@ -147,8 +147,16 @@ der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 3
 6. In Moonlight den Host öffnen und **Home Assistant** einmal starten (und jeden zusätzlichen Reiter, z. B. **Loxone**).
    Danach startet *Am Fernseher zeigen* diese Apps direkt.
 
-Empfohlene Moonlight-Einstellungen: Auflösung wie in den Streamer-Einstellungen (webOS 4: 1080p), 30 Bilder/s,
-10–16 Mbit/s, Decoder Voreinstellung, Maus **absolut**.
+**Moonlight-Einstellungen** (Moonlight → Einstellungen, einmal je Fernseher):
+
+| Einstellung | Wert | Warum |
+|---|---|---|
+| Auflösung | wie der Streamer: webOS 4 (z. B. UK7550) **1080p**, webOS 5+ (z. B. 86UN85) **1440p** | webOS 4 zeigt über 1080p ein grünes Bild |
+| Bildrate | **60 Bilder/s** (30, falls es ruckelt) | |
+| Bitrate | 10–16 Mbit/s | |
+| **PC während des Streamings stummschalten** | **aus** | sonst **kein Ton** – Sunshine schaltet die Tonausgabe des Streamers stumm |
+| Decoder | Voreinstellung | „SMP“ hat keinen Ton und viel mehr Verzögerung |
+| Maus | **absolut** (Voreinstellung) | der Zeiger der Magic Remote trifft 1:1 auf das Dashboard |
 
 #### 9.4 Session-Token für die automatische Verlängerung
 LG beendet den Entwicklermodus nach etwa 1000 Stunden und entfernt Moonlight, wenn die Sitzung nicht verlängert wird.
@@ -174,6 +182,19 @@ Jeder Streamer ist ein Gerät mit Sensoren (Zustand, Zuschauer, Verzögerung, Bi
 Lehnt LG eine Verlängerung ab, erscheint eine **Reparatur**, die ein neues Token abfragt.
 
 Umstieg einer bestehenden, von Hand eingerichteten Installation: [docs/migration.de.md](docs/migration.de.md).
+
+## Fehlersuche
+
+| Problem | Ursache / Lösung |
+|---|---|
+| Moonlight: Bild, aber **kein Ton** | Moonlight-Einstellung *PC während des Streamings stummschalten* muss **aus** sein. |
+| Moonlight: grünes oder schwarzes Bild, nur ein Standbild | Auflösung zu hoch für den Fernseher (webOS 4: höchstens 1080p). In Moonlight und in den Streamer-Einstellungen dieselbe Größe einstellen. |
+| Moonlight findet den Host nicht | Von Hand hinzufügen: `<VM-IP>` (zweiter Streamer `<VM-IP>:48089`). Docker verhindert die automatische Suche. |
+| Sunshine-Oberfläche meldet *forbidden* / CSRF-Fehler | Mit der IP-Adresse der VM öffnen, wie sie in der Integration eingetragen ist (`https://<VM-IP>:47990`), nicht mit einem Hostnamen. |
+| Sunshine startet nicht (`docker logs tv-<name>` zeigt `… .so: cannot open shared object file`) | Eine Bibliothek, die das Sunshine-AppImage erwartet, fehlt. Das Image installiert alle bekannten (z. B. `libpipewire-0.3-0t64`); braucht eine neue Sunshine-Fassung mehr, das Paket in `streamer/Dockerfile` ergänzen und ein Issue anlegen. |
+| Entwicklermodus abgelaufen, Moonlight ist weg | Entwicklermodus wieder einschalten (9.1), Moonlight neu installieren (9.3), das **neue** Token eintragen (9.4) – die Reparatur in Home Assistant fragt danach. |
+| VM übernimmt Änderungen nicht | Auf der VM: `journalctl -u tv-streamer-config -n 50`. „token rejected“ → Befehl aus der *VM-Einrichtung* erneut ausführen. |
+| *Am Fernseher zeigen* tut nichts, wenn der Fernseher aus ist | In den Streamer-Einstellungen *Einschalten mit (Wake on LAN)* setzen; am Fernseher muss Einschalten über das Netz an sein (z. B. *Einstellungen → Allgemein → Mobile TV On*; der Menüname unterscheidet sich je Modell). |
 
 ## So funktioniert es
 
