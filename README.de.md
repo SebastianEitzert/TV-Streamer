@@ -187,7 +187,7 @@ der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 3
    – oder, empfohlen, die [TV-Streamer-Fassung von Moonlight](moonlight/README.md): Sie gibt Blau, Grün und
    Wiedergabe/Pause an das Dashboard weiter und zeigt den Zeiger nach den Pfeiltasten sofort wieder. Jede Taste erscheint
    außerdem in Home Assistant als Ereignis-Entität `event.tv_streamer_<streamer>_fernbedienung` (Ereignistypen `blue`,
-   `green`, `play_pause`, `stop`) – nutzbar als Auslöser in Automationen.
+   `green`, `play`, `pause`, `stop`) – nutzbar als Auslöser in Automationen.
 2. Im Dev Manager **Apps → Installieren** öffnen und die `.ipk` wählen. Moonlight erscheint in der App-Liste des Fernsehers.
 3. Am PC die Sunshine-Oberfläche des Streamers öffnen: `https://<VM-IP>:47990` (zweiter Streamer `:48090`, …). Die
    Zertifikatswarnung bestätigen (Sunshine nutzt ein eigenes Zertifikat) und Sunshine-Benutzername und -Kennwort anlegen.

@@ -185,7 +185,7 @@ so the TV needs LG's **developer mode**. This takes about 30 minutes once.
    – or, recommended, the [TV Streamer build of Moonlight](moonlight/README.md): it passes the blue, green and
    play/pause keys to the dashboard and brings the pointer back right after the arrow keys. Each key also shows up in
    Home Assistant as the event entity `event.tv_streamer_<streamer>_remote` (event types `blue`, `green`,
-   `play_pause`, `stop`) – usable as a trigger in automations.
+   `play`, `pause`, `stop`) – usable as a trigger in automations.
 2. In the Dev Manager open **Apps → Install** and select the `.ipk`. Moonlight appears in the TV's app list.
 3. Open the Sunshine web UI of the streamer on your PC: `https://<VM-IP>:47990` (second streamer `:48090`, …). Accept the
    certificate warning (Sunshine uses its own certificate) and create a Sunshine user name and password.

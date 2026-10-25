@@ -10,7 +10,8 @@ small patches in [`patches/`](patches/) against the upstream release in [`UPSTRE
 |---|---|---|---|
 | Blue | ignored while streaming | sends **F13** | show Home Assistant (already there: start page); HA event `tv_streamer_key` = `blue` |
 | Green | ignored while streaming | sends **F14** | show the first extra tab (e.g. Loxone); event `green` |
-| Play/Pause | ignored | sends **F15** (Sunshine on Linux drops media keys) | event `play_pause` (use it in an automation, e.g. pause the music) |
+| Play | ignored | sends **F15** (Sunshine on Linux drops media keys) | event `play` (use it in an automation, e.g. start the music) |
+| Pause | ignored | sends **F17** | event `pause` |
 | Stop | ignored | sends **F16** | event `stop` |
 | Arrow keys | pointer disappears until the remote is shaken | pointer comes back when the key is released | arrows go to the page (e.g. floor switch) |
 
@@ -30,9 +31,9 @@ webOS keeps running the old version until then.
 triggers:
   - trigger: event
     event_type: tv_streamer_key
-    event_data: {streamer: schlafzimmer, key: play_pause}
+    event_data: {streamer: schlafzimmer, key: pause}
 actions:
-  - action: media_player.media_play_pause
+  - action: media_player.media_pause
     target: {entity_id: media_player.bedroom_speaker}
 ```
 

@@ -256,7 +256,8 @@
             "state": {
               "blue": "Blue",
               "green": "Green",
-              "play_pause": "Play/Pause",
+              "play": "Play",
+              "pause": "Pause",
               "stop": "Stop"
             }
           }

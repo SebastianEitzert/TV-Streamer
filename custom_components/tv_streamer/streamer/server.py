@@ -218,7 +218,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-25.40"
+FASSUNG = "2026-10-25.41"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -509,7 +509,7 @@ async def wait_for_x():
 
 
 def _tasten_belegen():
-    """Läuft im Executor: F13–F16 per XChangeKeyboardMapping auf die Tastencodes 191–194 legen (libX11 über ctypes)."""
+    """Läuft im Executor: F13–F17 per XChangeKeyboardMapping auf die Tastencodes 191–195 legen (libX11 über ctypes)."""
     import ctypes
     import ctypes.util
     x = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11") or "libX11.so.6")
@@ -520,8 +520,8 @@ def _tasten_belegen():
         raise OSError("Bildschirm %s nicht erreichbar" % CFG["display"])
     d = ctypes.c_void_p(d)
     try:
-        syms = (ctypes.c_ulong * 4)(*[x.XStringToKeysym(b"F%d" % n) for n in (13, 14, 15, 16)])
-        x.XChangeKeyboardMapping(d, 191, 1, syms, 4)
+        syms = (ctypes.c_ulong * 5)(*[x.XStringToKeysym(b"F%d" % n) for n in (13, 14, 15, 16, 17)])
+        x.XChangeKeyboardMapping(d, 191, 1, syms, 5)
         x.XSync(d, 0)
         if x.XKeysymToKeycode(d, ctypes.c_ulong(syms[0])) != 191:
             raise OSError("Belegung nicht übernommen")
@@ -530,20 +530,20 @@ def _tasten_belegen():
 
 
 async def tasten_belegen():
-    """.39: F13–F16 auf freie Tastencodes legen. Sunshine gibt Tasten über XTest weiter und braucht dafür einen Tastencode;
-    in der Standardbelegung von Xvfb hat F13–F16 keinen (191–194 heißen dort XF86Tools/XF86Launch5–7) – ohne diese Belegung
+    """.39: F13–F17 (.41: F17 = Pause) auf freie Tastencodes legen. Sunshine gibt Tasten über XTest weiter und braucht dafür einen Tastencode;
+    in der Standardbelegung von Xvfb hat F13–F17 keinen (191–195 heißen dort XF86Tools/XF86Launch5–8) – ohne diese Belegung
     verwirft Sunshine Blau, Grün, Wiedergabe/Pause und Stopp des angepassten Moonlight stillschweigend.
     (xmodmap übernimmt die Belegung im Xvfb nicht zuverlässig, daher direkt über libX11.)"""
     fehler = None
     for _ in range(20):
         try:
             await asyncio.get_running_loop().run_in_executor(None, _tasten_belegen)
-            log.info("Tasten F13–F16 belegt (Farb- und Medientasten aus Moonlight)")
+            log.info("Tasten F13–F17 belegt (Farb- und Medientasten aus Moonlight)")
             return
         except Exception as e:
             fehler = e
             await asyncio.sleep(0.5)
-    log.warning("Tasten F13–F16 nicht belegt: %s", fehler)
+    log.warning("Tasten F13–F17 nicht belegt: %s", fehler)
 
 
 # ---------------------------------------------------------------- Chromium fernsteuern (CDP)
@@ -747,10 +747,10 @@ MOONLIGHT_JS = r"""(() => {
   }
   const melde = (o) => { try { if (window.__tvWechsel) { window.__tvWechsel(JSON.stringify(o)); } } catch (e) {} };
   window.addEventListener('keydown', (e) => {
-    /* Angepasstes Moonlight (Repo-Ordner moonlight/): Blau = F13, Grün = F14, Wiedergabe/Pause = F15, Stopp = F16
+    /* Angepasstes Moonlight (Repo-Ordner moonlight/): Blau = F13, Grün = F14, Wiedergabe = F15, Stopp = F16, Pause = F17
        (Sunshine verwirft unter Linux die Medientasten; die werden trotzdem erkannt, falls sie einmal ankommen) */
     /* e.code statt e.key: Unter X11 heißt F13 als Zeichen „XF86Tools“ und F14 „XF86Launch5“, der Tastencode bleibt F13/F14 */
-    const fb = ['F13', 'F14', 'F15', 'F16', 'MediaPlayPause', 'MediaStop'].find((k) => e.code === k || e.key === k);
+    const fb = ['F13', 'F14', 'F15', 'F16', 'F17', 'MediaPlayPause', 'MediaStop'].find((k) => e.code === k || e.key === k);
     if (fb) {
       e.preventDefault(); e.stopImmediatePropagation();
       if (!e.repeat) { melde({ fernbedienung: fb }); }
@@ -2901,7 +2901,7 @@ async def status(request):
 
 
 # Tasten des angepassten Moonlight (Repo-Ordner moonlight/) → Namen des Ereignisses tv_streamer_key in Home Assistant
-FERNBEDIENUNG = {"F13": "blue", "F14": "green", "F15": "play_pause", "F16": "stop", "MediaPlayPause": "play_pause", "MediaStop": "stop"}
+FERNBEDIENUNG = {"F13": "blue", "F14": "green", "F15": "play", "F16": "stop", "F17": "pause", "MediaPlayPause": "play", "MediaStop": "stop"}
 
 
 async def ha_taste(name):

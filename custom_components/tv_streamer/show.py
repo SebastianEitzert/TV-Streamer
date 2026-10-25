@@ -86,8 +86,11 @@ async def _async_launch_moonlight(
         _LOGGER.warning("Streamer status not available, starting Moonlight without host: %s", err)
         status = coordinator.data or {}
     moonlight = status.get("moonlight") or {}
-    if moonlight.get("stream"):
-        return  # Moonlight is already showing the streamer – switching the tab was enough
+    if moonlight.get("stream") and _app(hass, tv) == MOONLIGHT_APP:
+        _LOGGER.debug("%s already shows the stream – switching the tab was enough", tv)
+        return
+    # A stream can also be open while another app is in front: Moonlight keeps its session in the background
+    # (e.g. after switching to YouTube). Launching it again brings it back to the front.
     uuid = moonlight.get("uuid") or ""
     apps = {str(k).lower(): v for k, v in (moonlight.get("apps") or {}).items()}
     app_id = int(apps.get((link or HOME_APP).lower(), 0) or 0)
@@ -111,6 +114,7 @@ async def _async_launch(hass: HomeAssistant, tv: str, command: str, payload: dic
     """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + LAUNCH_TIMEOUT
+    _LOGGER.debug("%s: %s %s (in front: %s)", tv, command, payload, _app(hass, tv))
     while True:
         try:
             await _async_webos(hass, tv, command, payload)
@@ -125,8 +129,7 @@ async def _async_wait_app(hass: HomeAssistant, tv: str, app: str, timeout: float
     done = asyncio.Event()
 
     def _check() -> bool:
-        state = hass.states.get(tv)
-        return state is not None and state.attributes.get("app_id") == app
+        return _app(hass, tv) == app
 
     @callback
     def _changed(event: Event[EventStateChangedData]) -> None:
@@ -185,6 +188,12 @@ async def _async_webos(hass: HomeAssistant, tv: str, command: str, payload: dict
     await hass.services.async_call(
         "webostv", "command", {ATTR_ENTITY_ID: tv, ATTR_COMMAND: command, "payload": payload}, blocking=True
     )
+
+
+def _app(hass: HomeAssistant, entity_id: str) -> str | None:
+    """The app the TV shows in front (webostv media player attribute app_id)."""
+    state = hass.states.get(entity_id)
+    return state.attributes.get("app_id") if state is not None else None
 
 
 def _is_off(hass: HomeAssistant, entity_id: str) -> bool:

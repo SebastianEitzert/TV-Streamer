@@ -32,7 +32,7 @@ index 4039940..ae4db89 100644
                  SDL_webOSCursorVisibility(SDL_FALSE);
              }
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
-index 652545b..71a023d 100644
+index 652545b..47332cc 100644
 --- a/src/app/platform/webos/keyboard_webos.c
 +++ b/src/app/platform/webos/keyboard_webos.c
 @@ -16,6 +16,9 @@
@@ -45,14 +45,14 @@ index 652545b..71a023d 100644
  
  bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_KeyboardEvent *event, short *keyCode) {
      session_t *session = input->session;
-@@ -57,6 +60,29 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -57,6 +60,36 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
          case SDL_SCANCODE_WEBOS_RED:
              bus_pushevent(USER_OPEN_OVERLAY, NULL, NULL);
              return true;
 +#if TV_STREAMER_REMOTE_KEYS
 +        /* TV Streamer: pass the colour and media keys to the host as keys a web page can see.
 +         * Blue = F13, Green = F14 (the streamer maps them to Home Assistant and the first extra tab),
-+         * Play/Pause = F15, Stop = F16 (Sunshine on Linux drops the media keys, F13–F24 get through). */
++         * Play = F15, Stop = F16, Pause = F17 (Sunshine on Linux drops the media keys, F13–F24 get through). */
 +        case SDL_SCANCODE_WEBOS_BLUE:
 +            if (input->view_only) {
 +                return true;
@@ -71,6 +71,13 @@ index 652545b..71a023d 100644
 +        case SDL_SCANCODE_AUDIOSTOP:
 +            *keyCode = VK_F16;
 +            return false;
++        case SDL_SCANCODE_PAUSE:
++            /* Pause = F17. Sent here directly: the generic mapping later in stream_input_handle_key would turn
++             * SDL_SCANCODE_PAUSE into VK_PAUSE again, which Sunshine on Linux does not know. */
++            if (!input->view_only) {
++                LiSendKeyboardEvent(0x8000 | VK_F17, event->state == SDL_PRESSED ? KEY_ACTION_DOWN : KEY_ACTION_UP, 0);
++            }
++            return true;
 +#endif
  #if TV_REMOTE_TOGGLE_SOFT_INPUT
              case SDL_SCANCODE_WEBOS_BLUE:

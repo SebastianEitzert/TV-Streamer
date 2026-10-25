@@ -104,11 +104,11 @@ async def test_setup_endpoints_webhook(hass: HomeAssistant, entry, aioclient_moc
 
     events = []
     hass.bus.async_listen("tv_streamer_key", lambda e: events.append(e.data))
-    await client.post("/api/webhook/hook123", json={"name": "bedroom", "taste": "play_pause"})
+    await client.post("/api/webhook/hook123", json={"name": "bedroom", "taste": "play"})
     await hass.async_block_till_done()
-    assert events == [{"streamer": "bedroom", "key": "play_pause", "entry_id": entry.entry_id}]
+    assert events == [{"streamer": "bedroom", "key": "play", "entry_id": entry.entry_id}]
     assert hass.states.get("sensor.tv_streamer_bedroom_state").state == "showing"  # status untouched
-    assert hass.states.get("event.tv_streamer_bedroom_remote").attributes["event_type"] == "play_pause"
+    assert hass.states.get("event.tv_streamer_bedroom_remote").attributes["event_type"] == "play"
 
     await hass.services.async_call(
         "button", "press", {"entity_id": "button.tv_streamer_bedroom_start_view"}, blocking=True
@@ -274,3 +274,42 @@ async def test_show_on_tv_wakes_and_starts_moonlight(hass: HomeAssistant, entry,
     )
     posted = [c[2] for c in aioclient_mock.mock_calls if str(c[1]).endswith("/api/cmd")]
     assert {"c": "link:loxone"} in posted
+
+
+async def test_show_on_tv_starts_moonlight_when_another_app_is_in_front(hass: HomeAssistant, entry, aioclient_mock) -> None:
+    """Moonlight keeps its stream open in the background – the button must still bring it to the front."""
+    from unittest.mock import patch
+
+    from homeassistant.helpers import entity_registry as er
+
+    from custom_components.tv_streamer.const import CONF_MEDIA_PLAYER, CONF_STREAMERS
+
+    tv = er.async_get(hass).async_get_or_create("media_player", "webostv", "tv2", suggested_object_id="tv2").entity_id
+    hass.states.async_set(tv, "on", {"app_id": "youtube.leanback.v4"})
+    calls = []
+
+    async def webos(call):
+        calls.append(dict(call.data))
+        hass.states.async_set(tv, "on", {"app_id": call.data["payload"]["id"]})
+
+    hass.services.async_register("webostv", "command", webos)
+    streamers = [dict(s) for s in entry.options[CONF_STREAMERS]]
+    streamers[0][CONF_MEDIA_PLAYER] = tv
+    hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_STREAMERS: streamers})
+
+    status = {**STATUS, "moonlight": {"an": True, "stream": True, "uuid": "UUID-1", "apps": {"Home Assistant": 42}}}
+    aioclient_mock.get("http://192.168.1.42:8091/api/status", json=status)
+    aioclient_mock.get("http://192.168.1.42:8092/api/status", json={**STATUS, "name": "living_room"})
+    aioclient_mock.post("http://192.168.1.42:8091/api/cmd", json={"ok": True})
+    aioclient_mock.get(LG_CHECK_URL, text=LG_OK)
+    with patch("custom_components.tv_streamer.show.LAUNCH_RETRY", 0.05):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        await hass.services.async_call("button", "press", {"entity_id": "button.tv_streamer_bedroom_show_on_tv"}, blocking=True)
+        await hass.async_block_till_done(wait_background_tasks=True)
+        assert len(calls) == 1 and calls[0]["payload"]["id"] == "com.limelight.webos"
+
+        # Moonlight in front with the stream running: switching the tab is enough, no second start
+        await hass.services.async_call("button", "press", {"entity_id": "button.tv_streamer_bedroom_show_on_tv"}, blocking=True)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(calls) == 1

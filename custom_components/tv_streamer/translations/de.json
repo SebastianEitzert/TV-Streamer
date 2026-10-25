@@ -256,7 +256,8 @@
             "state": {
               "blue": "Blau",
               "green": "Grün",
-              "play_pause": "Wiedergabe/Pause",
+              "play": "Wiedergabe",
+              "pause": "Pause",
               "stop": "Stopp"
             }
           }

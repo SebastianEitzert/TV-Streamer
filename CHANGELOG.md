@@ -2,13 +2,20 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.1 – 2026-10-25
+- "Show on TV" starts Moonlight also when it still holds a stream in the background while another app (e.g. YouTube)
+  is in front – before, the button only switched the tab and the TV stayed on the other app.
+- Remote keys: separate events `play` and `pause` (the LG remote has two keys) instead of `play_pause`. Moonlight build:
+  Pause is sent as F17; streamer 2026-10-25.41 maps F13–F17.
+- Removed two keymap dump files that had slipped into 0.4.0.
+
 ## 0.4.0 – 2026-10-25
 - `moonlight/`: patched Moonlight for webOS (blue/green/play-pause/stop to the host, pointer back after arrow keys),
   built by a GitHub Action from the upstream release v1.6.37.
 - Streamer: blue = Home Assistant, green = first extra tab, every remote key also fires the Home Assistant event
   `tv_streamer_key`.
 - Event entity "Remote" per streamer (`event.tv_streamer_<streamer>_remote`) with the event types `blue`, `green`,
-  `play_pause` and `stop` – a clean automation trigger for the remote keys.
+  `play`, `pause` and `stop` – a clean automation trigger for the remote keys.
 - Options: every step is saved right away, the "Save" menu entry is gone.
 - Addresses without `http://` are accepted (`192.168.1.160`), the start view also as a bare path (`/dashboard-tv/home`).
 - Moonlight build: Play/Pause and Stop are sent as F15/F16 (Sunshine on Linux drops media keys); the app is called

@@ -68,6 +68,17 @@ jobs:
           TOOLCHAIN_FILE: /tmp/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
         run: ./scripts/webos/easy_build.sh -DCMAKE_BUILD_TYPE=Release
 
+      # Which SDL scancode does each LG remote key produce? (webOS scancodes and the webOS key table of SDL)
+      - name: List webOS remote key scancodes
+        if: always()
+        run: |
+          for h in $(find upstream /tmp/arm-webos-linux-gnueabi_sdk-buildroot -name SDL_scancode.h 2>/dev/null); do
+            echo "== $h"; grep -nE "SDL_SCANCODE_(WEBOS_[A-Z0-9_]+|AUDIO[A-Z]+|PAUSE|MEDIA[A-Z_]*)\b *=" "$h" || true
+          done
+          for f in $(grep -rlE "SDL_SCANCODE_WEBOS_|WEBOS_KEY" upstream --include=*.c 2>/dev/null | grep -v "^upstream/src/"); do
+            echo "== $f"; grep -nE "AUDIO|PAUSE|PLAY|STOP|MEDIA|REWIND|FORWARD" "$f" | head -40 || true
+          done
+
       - name: Name the package
         working-directory: upstream/dist
         run: |
