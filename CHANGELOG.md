@@ -16,6 +16,9 @@ All notable changes to this project. Versions follow the `version` in `custom_co
 - Options: new "Edit extra tab" (address, remember login, never reload); tab names show capitalised in button names.
 - VM update script: also switches off the old `tv-streamer-update.timer` when it is only running (not enabled) – it kept
   copying old streamer files over the new ones. The script now keeps itself up to date.
+- Streamer 2026-10-25.39: F13–F16 get key codes in the virtual screen. Sunshine passes keys on via XTest and silently
+  dropped keys without a key code – that is why blue, green and play/pause never arrived. Xvfb runs with `-noreset`
+  so the mapping survives a browser restart.
 - Jarvis-style automations can use the "Show on TV" buttons instead of scripts.
 
 ## 0.3.1

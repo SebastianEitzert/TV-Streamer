@@ -218,7 +218,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-25.38"
+FASSUNG = "2026-10-25.39"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -506,6 +506,44 @@ async def wait_for_x():
             return True
         await asyncio.sleep(0.1)
     return False
+
+
+def _tasten_belegen():
+    """Läuft im Executor: F13–F16 per XChangeKeyboardMapping auf die Tastencodes 191–194 legen (libX11 über ctypes)."""
+    import ctypes
+    import ctypes.util
+    x = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11") or "libX11.so.6")
+    x.XOpenDisplay.restype = ctypes.c_void_p
+    x.XStringToKeysym.restype = ctypes.c_ulong
+    d = x.XOpenDisplay(CFG["display"].encode())
+    if not d:
+        raise OSError("Bildschirm %s nicht erreichbar" % CFG["display"])
+    d = ctypes.c_void_p(d)
+    try:
+        syms = (ctypes.c_ulong * 4)(*[x.XStringToKeysym(b"F%d" % n) for n in (13, 14, 15, 16)])
+        x.XChangeKeyboardMapping(d, 191, 1, syms, 4)
+        x.XSync(d, 0)
+        if x.XKeysymToKeycode(d, ctypes.c_ulong(syms[0])) != 191:
+            raise OSError("Belegung nicht übernommen")
+    finally:
+        x.XCloseDisplay(d)
+
+
+async def tasten_belegen():
+    """.39: F13–F16 auf freie Tastencodes legen. Sunshine gibt Tasten über XTest weiter und braucht dafür einen Tastencode;
+    in der Standardbelegung von Xvfb hat F13–F16 keinen (191–194 heißen dort XF86Tools/XF86Launch5–7) – ohne diese Belegung
+    verwirft Sunshine Blau, Grün, Wiedergabe/Pause und Stopp des angepassten Moonlight stillschweigend.
+    (xmodmap übernimmt die Belegung im Xvfb nicht zuverlässig, daher direkt über libX11.)"""
+    fehler = None
+    for _ in range(20):
+        try:
+            await asyncio.get_running_loop().run_in_executor(None, _tasten_belegen)
+            log.info("Tasten F13–F16 belegt (Farb- und Medientasten aus Moonlight)")
+            return
+        except Exception as e:
+            fehler = e
+            await asyncio.sleep(0.5)
+    log.warning("Tasten F13–F16 nicht belegt: %s", fehler)
 
 
 # ---------------------------------------------------------------- Chromium fernsteuern (CDP)
@@ -2983,9 +3021,11 @@ async def main():
     if CFG["freeze_after"] > 0:   # auch nach dem Start ruhen lassen, solange niemand zuschaut
         video.freeze_task = asyncio.ensure_future(video._freeze_later())
     asyncio.ensure_future(supervise("Xvfb", ["Xvfb", CFG["display"], "-screen", "0", "%dx%dx24" % (CFG["width"], CFG["height"]),
-                                             "-nolisten", "tcp", "-ac", "-dpi", "96"]))
+                                             "-nolisten", "tcp", "-ac", "-dpi", "96", "-noreset"]))   # .39: Tastenbelegung bleibt
     if not await wait_for_x():
         log.error("Xvfb startet nicht")
+    else:
+        await tasten_belegen()
     ton_env = {}
     if CFG["audio"]:          # .30: Senke vor Chromium starten – Chromium und die Ton-Kodierer finden sie über PULSE_SERVER
         if shutil.which("pulseaudio"):
