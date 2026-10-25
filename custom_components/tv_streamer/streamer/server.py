@@ -709,6 +709,12 @@ MOONLIGHT_JS = r"""(() => {
   }
   const melde = (o) => { try { if (window.__tvWechsel) { window.__tvWechsel(JSON.stringify(o)); } } catch (e) {} };
   window.addEventListener('keydown', (e) => {
+    /* Angepasstes Moonlight (Repo-Ordner moonlight/): Blau = F13, Grün = F14, Wiedergabe/Pause und Stopp als Medientasten */
+    if (e.key === 'F13' || e.key === 'F14' || e.key === 'MediaPlayPause' || e.key === 'MediaStop') {
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (!e.repeat) { melde({ fernbedienung: e.key }); }
+      return;
+    }
     if (e.key === 'PageUp' || e.key === 'PageDown') {
       e.preventDefault(); e.stopImmediatePropagation();
       if (!e.repeat) { melde({ richtung: e.key === 'PageUp' ? 1 : -1 }); }
@@ -1000,6 +1006,14 @@ class Cdp:
                         ziel = folge[(i + d["richtung"]) % len(folge)]
                         log.info("Moonlight: Taste Bild %s – %s", "auf" if d["richtung"] > 0 else "ab", ziel)
                         asyncio.ensure_future(self.command("startansicht" if ziel == "home" else "link:" + ziel))   # .37o: HA immer mit Startansicht
+                    elif d.get("fernbedienung") in FERNBEDIENUNG:
+                        name = FERNBEDIENUNG[d["fernbedienung"]]
+                        log.info("Moonlight: Taste %s", name)
+                        if name == "blue":      # wie im Browser: Home Assistant, ist man dort schon: Startseite
+                            asyncio.ensure_future(self.command("home"))
+                        elif name == "green" and CFG["links"]:    # erster zusätzlicher Reiter (z. B. Loxone)
+                            asyncio.ensure_future(self.command("link:" + next(iter(CFG["links"]))))
+                        asyncio.ensure_future(ha_taste(name))   # jede Taste auch als Ereignis tv_streamer_key in HA
                     elif d.get("taste"):
                         log.info("Moonlight: Taste %s (%s)", str(d.get("taste"))[:24], str(d.get("code") or "")[:24])
             elif meth == "Runtime.bindingCalled" and p.get("name") == "__tvZugang":
@@ -2838,6 +2852,23 @@ async def status(request):
     d["webrtc"] = await request.app["webrtc"].info() if request.app["webrtc"].enabled else "aus"
     d["mse_bilder_s_einstellung"] = request.app["video"].fps
     return web.json_response(d)
+
+
+# Tasten des angepassten Moonlight (Repo-Ordner moonlight/) → Namen des Ereignisses tv_streamer_key in Home Assistant
+FERNBEDIENUNG = {"F13": "blue", "F14": "green", "MediaPlayPause": "play_pause", "MediaStop": "stop"}
+
+
+async def ha_taste(name):
+    """Eine Taste der Fernbedienung sofort an Home Assistant melden (die Integration feuert tv_streamer_key)."""
+    if not CFG["ha_webhook"]:
+        return
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=5)) as s:
+            async with s.post(CFG["ha_webhook"], json={"name": CFG["name"], "taste": name}) as r:
+                if r.status >= 300:
+                    log.warning("Taste an Home Assistant: HTTP %s", r.status)
+    except Exception as e:
+        log.warning("Taste an Home Assistant fehlgeschlagen: %s", e)
 
 
 async def report(app):

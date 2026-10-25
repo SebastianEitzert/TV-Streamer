@@ -100,6 +100,13 @@ async def test_setup_endpoints_webhook(hass: HomeAssistant, entry, aioclient_moc
     assert hass.states.get("sensor.tv_streamer_bedroom_latency").state == "42"
     assert hass.states.get("sensor.tv_streamer_bedroom_data_rate").state == "5.5"
 
+    events = []
+    hass.bus.async_listen("tv_streamer_key", lambda e: events.append(e.data))
+    await client.post("/api/webhook/hook123", json={"name": "bedroom", "taste": "play_pause"})
+    await hass.async_block_till_done()
+    assert events == [{"streamer": "bedroom", "key": "play_pause", "entry_id": entry.entry_id}]
+    assert hass.states.get("sensor.tv_streamer_bedroom_state").state == "showing"  # status untouched
+
     await hass.services.async_call(
         "button", "press", {"entity_id": "button.tv_streamer_bedroom_start_view"}, blocking=True
     )

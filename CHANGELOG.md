@@ -2,7 +2,14 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
-## 0.3.1 – unreleased
+## 0.4.0 – unreleased
+- `moonlight/`: patched Moonlight for webOS (blue/green/play-pause/stop to the host, pointer back after arrow keys),
+  built by a GitHub Action from the upstream release v1.6.37.
+- Streamer: blue = Home Assistant, green = first extra tab, every remote key also fires the Home Assistant event
+  `tv_streamer_key`.
+- Jarvis-style automations can use the "Show on TV" buttons instead of scripts.
+
+## 0.3.1
 - "Show on TV": no fixed 8 s pause after switching the TV on any more. The app start is repeated until webOS reports
   the app in the foreground (at most 20 s).
 

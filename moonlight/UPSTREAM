@@ -1,0 +1,3 @@
+# moonlight-tv release the patches in moonlight/patches/ are applied to
+repository=https://github.com/mariotaku/moonlight-tv
+tag=v1.6.37

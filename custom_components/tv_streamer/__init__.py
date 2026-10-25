@@ -24,6 +24,7 @@ from .const import (
     CONF_WEBHOOK_ID,
     DEFAULT_LG_RENEW_TIME,
     DOMAIN,
+    EVENT_KEY,
 )
 from .coordinator import StreamerCoordinator, TvStreamerData
 from .streamer_files import files_manifest, load_streamer_files
@@ -106,7 +107,13 @@ def _push(hass: HomeAssistant, webhook_id: str, payload: dict[str, Any]) -> None
         if entry.data.get(CONF_WEBHOOK_ID) != webhook_id:
             continue
         coordinator = entry.runtime_data.coordinators.get(str(payload.get("name", "")))
-        if coordinator:
+        if coordinator and "taste" in payload:
+            # A remote key from the patched Moonlight app – fire an event for automations, no status update.
+            hass.bus.async_fire(
+                EVENT_KEY,
+                {"streamer": coordinator.streamer[CONF_ID], "key": str(payload["taste"])[:24], "entry_id": entry.entry_id},
+            )
+        elif coordinator:
             coordinator.async_push(payload)
         else:
             _LOGGER.debug("Report from unknown streamer %s", payload.get("name"))

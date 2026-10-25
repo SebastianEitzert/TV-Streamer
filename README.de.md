@@ -14,7 +14,7 @@ Dashboard, als hinge ein PC am Fernseher.
 | `vm/proxmox-vm.sh` – legt die VM in Proxmox VE an | **0.1** |
 | `custom_components/tv_streamer/streamer` – Streamer-Image (Docker: `server.py`, Chromium, Kodierer, Sunshine), liefert die Integration an die VM | **0.3** |
 | Grundriss-Karte für Lovelace (HACS) | geplant |
-| Angepasstes Moonlight für LG webOS (`.ipk`, GPL-3.0) | geplant |
+| `moonlight/` – angepasstes Moonlight für LG webOS (`.ipk`, GPL-3.0) | **erste Fassung** |
 
 ## Anleitung
 
@@ -135,8 +135,8 @@ der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 3
 #### 9.3 Moonlight installieren
 1. Die neueste `com.limelight.webos_<Fassung>_arm.ipk` von den
    [Moonlight-TV-Releases](https://github.com/mariotaku/moonlight-tv/releases) herunterladen
-   (oder – sobald verfügbar – die angepasste Fassung aus den Releases dieses Repositorys; sie gibt zusätzlich Grün, Blau
-   und Wiedergabe/Pause an das Dashboard weiter).
+   – oder, empfohlen, die [TV-Streamer-Fassung von Moonlight](moonlight/README.md): Sie gibt Blau, Grün und
+   Wiedergabe/Pause an das Dashboard weiter und zeigt den Zeiger nach den Pfeiltasten sofort wieder.
 2. Im Dev Manager **Apps → Installieren** öffnen und die `.ipk` wählen. Moonlight erscheint in der App-Liste des Fernsehers.
 3. Am PC die Sunshine-Oberfläche des Streamers öffnen: `https://<VM-IP>:47990` (zweiter Streamer `:48090`, …). Die
    Zertifikatswarnung bestätigen (Sunshine nutzt ein eigenes Zertifikat) und Sunshine-Benutzername und -Kennwort anlegen.

@@ -13,7 +13,7 @@ Show Home Assistant dashboards on TVs, served from a small VM: one Chromium per 
 | `vm/proxmox-vm.sh` – creates the VM on Proxmox VE | **0.1** |
 | `custom_components/tv_streamer/streamer` – streamer image (Docker: `server.py`, Chromium, encoders, Sunshine), delivered to the VM by the integration | **0.3** |
 | Floor plan Lovelace card (HACS) | planned |
-| Patched Moonlight for LG webOS (`.ipk`, GPL-3.0) | planned |
+| `moonlight/` – patched Moonlight for LG webOS (`.ipk`, GPL-3.0) | **first build** |
 
 ## Setup guide
 
@@ -133,8 +133,8 @@ so the TV needs LG's **developer mode**. This takes about 30 minutes once.
 #### 9.3 Install Moonlight
 1. Download the latest `com.limelight.webos_<version>_arm.ipk` from the
    [Moonlight TV releases](https://github.com/mariotaku/moonlight-tv/releases)
-   (or the patched build from this repository's releases, once available – it also passes the green, blue and
-   play/pause keys to the dashboard).
+   – or, recommended, the [TV Streamer build of Moonlight](moonlight/README.md): it passes the blue, green and
+   play/pause keys to the dashboard and brings the pointer back right after the arrow keys.
 2. In the Dev Manager open **Apps → Install** and select the `.ipk`. Moonlight appears in the TV's app list.
 3. Open the Sunshine web UI of the streamer on your PC: `https://<VM-IP>:47990` (second streamer `:48090`, …). Accept the
    certificate warning (Sunshine uses its own certificate) and create a Sunshine user name and password.

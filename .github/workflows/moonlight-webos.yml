@@ -1,0 +1,90 @@
+name: Moonlight for webOS
+
+# Builds the patched Moonlight TV (.ipk) from the upstream release in moonlight/UPSTREAM plus moonlight/patches/.
+# A tag "moonlight-v<upstream version>-tvs<n>" (e.g. moonlight-v1.6.37-tvs1) attaches the .ipk to its GitHub release.
+
+on:
+  push:
+    branches: [main]
+    paths: ["moonlight/**", ".github/workflows/moonlight-webos.yml"]
+    tags: ["moonlight-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read upstream version
+        run: grep -E '^(repository|tag)=' moonlight/UPSTREAM >> "$GITHUB_ENV"
+
+      - name: Fetch moonlight-tv ${{ env.tag }}
+        run: git clone --depth 1 --branch "$tag" --recurse-submodules --shallow-submodules "$repository" upstream
+
+      - name: Apply TV Streamer patches
+        working-directory: upstream
+        run: for p in ../moonlight/patches/*.patch; do echo "applying $p"; git apply --verbose "$p"; done
+
+      - name: Download ares-cli-rs
+        uses: robinraju/release-downloader@v1.12
+        with:
+          repository: webosbrew/ares-cli-rs
+          latest: true
+          fileName: "ares-package_*_amd64.deb"
+          out-file-path: temp
+
+      - name: Download Homebrew toolbox
+        uses: robinraju/release-downloader@v1.12
+        with:
+          repository: webosbrew/dev-toolbox-cli
+          latest: true
+          fileName: "webosbrew-toolbox-*_amd64.deb"
+          out-file-path: temp
+
+      - name: Install tools
+        run: sudo apt-get -yq update && sudo apt-get -y -qq install cmake ./temp/*.deb
+
+      - name: Download webOS NDK
+        uses: robinraju/release-downloader@v1.12
+        with:
+          repository: openlgtv/buildroot-nc4
+          tag: webos-a38c582
+          fileName: arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz
+          out-file-path: /tmp
+          extract: true
+
+      - name: Relocate webOS NDK
+        working-directory: /tmp
+        run: ./arm-webos-linux-gnueabi_sdk-buildroot/relocate-sdk.sh
+
+      - name: Build
+        working-directory: upstream
+        env:
+          CI: "true"
+          TOOLCHAIN_FILE: /tmp/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
+        run: ./scripts/webos/easy_build.sh -DCMAKE_BUILD_TYPE=Release
+
+      - name: Name the package
+        working-directory: upstream/dist
+        run: |
+          for f in *.ipk; do mv "$f" "${f%_arm.ipk}-tvstreamer_arm.ipk"; done
+          ls -l
+
+      - name: Compatibility check
+        run: webosbrew-ipk-verify -f markdown -d -o "$GITHUB_STEP_SUMMARY" upstream/dist/*.ipk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-webos-tvstreamer
+          path: upstream/dist/*.ipk
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/moonlight-v')
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Moonlight for webOS ($GITHUB_REF_NAME)" --notes-file moonlight/RELEASE_NOTES.md
+          gh release upload "$GITHUB_REF_NAME" upstream/dist/*.ipk --clobber
