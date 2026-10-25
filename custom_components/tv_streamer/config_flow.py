@@ -232,6 +232,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
         self._options: dict[str, Any] = {}
         self._edit_id: str | None = None
         self._preset: dict[str, Any] = {}
+        self._edit_link: str | None = None
 
     @property
     def _streamers(self) -> list[dict[str, Any]]:
@@ -250,7 +251,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
             menu += ["edit_streamer", "remove_streamer"]
         menu += ["add_link"]
         if self._options[CONF_LINKS]:
-            menu += ["remove_link"]
+            menu += ["edit_link", "remove_link"]
         menu += ["settings", "vm_setup"]
         return self.async_show_menu(
             step_id="init",
@@ -373,29 +374,68 @@ class TvStreamerOptionsFlow(OptionsFlow):
             elif url is None:
                 errors[CONF_URL] = "invalid_url"
             else:
-                if user_input[CONF_REMEMBER_LOGIN]:  # server.py fills in the login of one tab only
-                    for link in self._options[CONF_LINKS]:
-                        link[CONF_REMEMBER_LOGIN] = False
-                self._options[CONF_LINKS].append(
-                    {
-                        CONF_NAME: name,
-                        CONF_URL: url,
-                        CONF_REMEMBER_LOGIN: user_input[CONF_REMEMBER_LOGIN],
-                        CONF_NO_RELOAD: user_input[CONF_NO_RELOAD],
-                    }
-                )
-                return self._save()
+                self._options[CONF_LINKS].append({CONF_NAME: name})
+                return self._store_link(name, url, user_input)
         return self.async_show_form(
             step_id="add_link",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_NAME): TEXT,
-                    vol.Required(CONF_URL): TEXT,
-                    vol.Required(CONF_REMEMBER_LOGIN, default=False): selector.BooleanSelector(),
-                    vol.Required(CONF_NO_RELOAD, default=False): selector.BooleanSelector(),
-                }
-            ),
+            data_schema=vol.Schema({vol.Required(CONF_NAME): TEXT, **self._link_fields({})}),
             errors=errors,
+        )
+
+    async def async_step_edit_link(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            self._edit_link = user_input[CONF_NAME]
+            return await self.async_step_link()
+        return self.async_show_form(step_id="edit_link", data_schema=self._choose_link_schema())
+
+    async def async_step_link(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Address and options of one tab; the name stays, buttons, entity ids and the Moonlight app hang on it."""
+        errors: dict[str, str] = {}
+        link = self._find_link(self._edit_link)
+        if user_input is not None:
+            url = normalize_url(user_input[CONF_URL])
+            if url is None:
+                errors[CONF_URL] = "invalid_url"
+            else:
+                return self._store_link(link[CONF_NAME], url, user_input)
+        return self.async_show_form(
+            step_id="link",
+            data_schema=vol.Schema(self._link_fields(link if user_input is None else {**link, **user_input})),
+            description_placeholders={"name": link[CONF_NAME]},
+            errors=errors,
+        )
+
+    @staticmethod
+    def _link_fields(values: dict[str, Any]) -> dict:
+        return {
+            vol.Required(CONF_URL, default=values.get(CONF_URL, vol.UNDEFINED)): TEXT,
+            vol.Required(CONF_REMEMBER_LOGIN, default=values.get(CONF_REMEMBER_LOGIN, False)): selector.BooleanSelector(),
+            vol.Required(CONF_NO_RELOAD, default=values.get(CONF_NO_RELOAD, False)): selector.BooleanSelector(),
+        }
+
+    def _store_link(self, name: str, url: str, user_input: dict[str, Any]) -> ConfigFlowResult:
+        if user_input[CONF_REMEMBER_LOGIN]:  # server.py fills in the login of one tab only
+            for link in self._options[CONF_LINKS]:
+                link[CONF_REMEMBER_LOGIN] = False
+        self._find_link(name).update(
+            {
+                CONF_URL: url,
+                CONF_REMEMBER_LOGIN: user_input[CONF_REMEMBER_LOGIN],
+                CONF_NO_RELOAD: user_input[CONF_NO_RELOAD],
+            }
+        )
+        return self._save()
+
+    def _find_link(self, name: str | None) -> dict[str, Any]:
+        return next(link for link in self._options[CONF_LINKS] if link[CONF_NAME] == name)
+
+    def _choose_link_schema(self) -> vol.Schema:
+        return vol.Schema(
+            {
+                vol.Required(CONF_NAME): selector.SelectSelector(
+                    selector.SelectSelectorConfig(options=[link[CONF_NAME] for link in self._options[CONF_LINKS]])
+                )
+            }
         )
 
     async def async_step_remove_link(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -404,16 +444,7 @@ class TvStreamerOptionsFlow(OptionsFlow):
                 link for link in self._options[CONF_LINKS] if link[CONF_NAME] != user_input[CONF_NAME]
             ]
             return self._save()
-        return self.async_show_form(
-            step_id="remove_link",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_NAME): selector.SelectSelector(
-                        selector.SelectSelectorConfig(options=[link[CONF_NAME] for link in self._options[CONF_LINKS]])
-                    )
-                }
-            ),
-        )
+        return self.async_show_form(step_id="remove_link", data_schema=self._choose_link_schema())
 
     # General settings --------------------------------------------------------------------
 

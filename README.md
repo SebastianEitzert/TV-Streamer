@@ -129,7 +129,7 @@ of Home Assistant, e.g. with the *Samba share* or *File editor* app → restart 
    | other | 1920×1080 | 1.25 | MSE |
 
    For LG TVs with Moonlight also paste the **developer mode session token** (see step 9).
-2. **Add extra tab** (optional) – e.g. a Loxone or router web interface: name, address (`192.168.1.160` is enough,
+2. **Add extra tab** (optional; later *Edit extra tab* changes address and options) – e.g. a Loxone or router web interface: name, address (`192.168.1.160` is enough,
    `http://` is added), *remember login*, *never reload*.
 3. **General settings** – start view (the dashboard the TVs open; a path like `/dashboard-tv/home` is enough), rest time,
    *back to start view after*, raster threads, audio, time zone.

@@ -13,6 +13,7 @@ All notable changes to this project. Versions follow the `version` in `custom_co
 - Addresses without `http://` are accepted (`192.168.1.160`), the start view also as a bare path (`/dashboard-tv/home`).
 - Moonlight build: Play/Pause and Stop are sent as F15/F16 (Sunshine on Linux drops media keys); the app is called
   "Moonlight TVS" so the patched build is easy to recognise. The streamer recognises the keys by key code.
+- Options: new "Edit extra tab" (address, remember login, never reload); tab names show capitalised in button names.
 - Jarvis-style automations can use the "Show on TV" buttons instead of scripts.
 
 ## 0.3.1

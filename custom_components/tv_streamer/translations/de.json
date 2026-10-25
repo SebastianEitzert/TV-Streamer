@@ -39,6 +39,7 @@
           "edit_streamer": "Streamer bearbeiten",
           "remove_streamer": "Streamer entfernen",
           "add_link": "Reiter hinzufügen",
+          "edit_link": "Reiter bearbeiten",
           "remove_link": "Reiter entfernen",
           "settings": "Allgemeine Einstellungen",
           "vm_setup": "VM-Einrichtung"
@@ -101,6 +102,26 @@
           "remember_login": "Der Streamer speichert die Anmeldung dieses Reiters in seinem Volume und füllt sie wieder aus. Nur ein Reiter kann das.",
           "no_reload": "Für Seiten, die beim Neuladen abmelden (z. B. Loxone).",
           "url": "IP-Adresse, Hostname oder ganze URL – http:// wird ergänzt, z. B. 192.168.1.160"
+        }
+      },
+      "edit_link": {
+        "title": "Reiter bearbeiten",
+        "data": {
+          "name": "Reiter"
+        }
+      },
+      "link": {
+        "title": "Reiter {name}",
+        "description": "Der Name bleibt – an ihm hängen Knöpfe, Entity-IDs und die Moonlight-App. Zum Umbenennen den Reiter entfernen und neu anlegen.",
+        "data": {
+          "url": "Adresse",
+          "remember_login": "Anmeldung merken",
+          "no_reload": "Nie neu laden"
+        },
+        "data_description": {
+          "url": "IP-Adresse, Hostname oder ganze URL – http:// wird ergänzt, z. B. 192.168.1.160",
+          "remember_login": "Der Streamer speichert die Anmeldung dieses Reiters in seinem Volume und füllt sie wieder aus. Nur ein Reiter kann das.",
+          "no_reload": "Für Seiten, die beim Neuladen abmelden (z. B. Loxone)."
         }
       },
       "remove_link": {

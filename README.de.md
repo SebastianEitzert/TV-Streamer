@@ -131,7 +131,7 @@ Home Assistant kopieren, z. B. mit der App *Samba share* oder *File editor* → 
    | andere | 1920×1080 | 1,25 | MSE |
 
    Bei LG-Fernsehern mit Moonlight zusätzlich das **Developer-Mode-Session-Token** eintragen (siehe Schritt 9).
-2. **Reiter hinzufügen** (optional) – z. B. Loxone oder die Router-Oberfläche: Name, Adresse (`192.168.1.160` genügt,
+2. **Reiter hinzufügen** (optional; *Reiter bearbeiten* ändert später Adresse und Optionen) – z. B. Loxone oder die Router-Oberfläche: Name, Adresse (`192.168.1.160` genügt,
    `http://` wird ergänzt), *Anmeldung merken*, *nie neu laden*.
 3. **Allgemeine Einstellungen** – Startansicht (das Dashboard, das die Fernseher öffnen; ein Pfad wie `/dashboard-tv/home`
    genügt), Ruhezeit, *zurück zur Startansicht nach*, Zeichen-Threads, Ton, Zeitzone.

@@ -13,6 +13,7 @@ from custom_components.tv_streamer.config_flow import normalize_url
 from custom_components.tv_streamer.const import (
     CONF_HA_URL,
     CONF_HOST,
+    CONF_LINKS,
     CONF_STREAMERS,
     CONF_VM_TOKEN,
     DOMAIN,
@@ -182,6 +183,34 @@ async def test_config_and_options_flow(hass: HomeAssistant, aioclient_mock) -> N
     assert "Bearer " in flow["description_placeholders"]["command"]
     flow = await hass.config_entries.options.async_configure(flow["flow_id"], {})
     assert flow["type"] is FlowResultType.MENU
+
+    flow = await hass.config_entries.options.async_init(entry.entry_id)
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"next_step_id": "add_link"})
+    flow = await hass.config_entries.options.async_configure(
+        flow["flow_id"], {"name": "Loxone", "url": "192.168.1.160", "remember_login": True, "no_reload": True}
+    )
+    assert flow["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[CONF_LINKS] == [
+        {"name": "loxone", "url": "http://192.168.1.160/", "remember_login": True, "no_reload": True}
+    ]
+
+    flow = await hass.config_entries.options.async_init(entry.entry_id)
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"next_step_id": "edit_link"})
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {"name": "loxone"})
+    assert flow["step_id"] == "link"
+    flow = await hass.config_entries.options.async_configure(
+        flow["flow_id"], {"url": "http://", "remember_login": True, "no_reload": False}
+    )
+    assert flow["errors"] == {"url": "invalid_url"}
+    flow = await hass.config_entries.options.async_configure(
+        flow["flow_id"], {"url": "192.168.1.161/app", "remember_login": True, "no_reload": False}
+    )
+    assert flow["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[CONF_LINKS] == [
+        {"name": "loxone", "url": "http://192.168.1.161/app", "remember_login": True, "no_reload": False}
+    ]
 
 
 def test_normalize_url() -> None:

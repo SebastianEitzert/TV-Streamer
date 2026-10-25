@@ -39,6 +39,7 @@
           "edit_streamer": "Edit streamer",
           "remove_streamer": "Remove streamer",
           "add_link": "Add extra tab",
+          "edit_link": "Edit extra tab",
           "remove_link": "Remove extra tab",
           "settings": "General settings",
           "vm_setup": "VM setup"
@@ -101,6 +102,26 @@
           "remember_login": "The streamer stores the login of this tab in its volume and fills it in again. Only one tab can have this.",
           "no_reload": "For pages that log out on reload (e.g. Loxone).",
           "url": "IP address, host name or full URL – http:// is added if missing, e.g. 192.168.1.160"
+        }
+      },
+      "edit_link": {
+        "title": "Edit extra tab",
+        "data": {
+          "name": "Tab"
+        }
+      },
+      "link": {
+        "title": "Tab {name}",
+        "description": "The name stays – buttons, entity ids and the Moonlight app depend on it. To rename, remove the tab and add it again.",
+        "data": {
+          "url": "Address",
+          "remember_login": "Remember login",
+          "no_reload": "Never reload"
+        },
+        "data_description": {
+          "url": "IP address, host name or full URL – http:// is added if missing, e.g. 192.168.1.160",
+          "remember_login": "The streamer stores the login of this tab in its volume and fills it in again. Only one tab can have this.",
+          "no_reload": "For pages that log out on reload (e.g. Loxone)."
         }
       },
       "remove_link": {

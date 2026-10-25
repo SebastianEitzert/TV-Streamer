@@ -57,7 +57,7 @@ class LinkButton(CommandButton):
     def __init__(self, coordinator: StreamerCoordinator, link: str) -> None:
         super().__init__(coordinator, f"link_{slugify(link)}", f"link:{link}")
         self._attr_translation_key = "link"
-        self._attr_translation_placeholders = {"link": link}
+        self._attr_translation_placeholders = {"link": link.replace("_", " ").title()}
 
 
 class ShowOnTvButton(TvStreamerEntity, ButtonEntity):
@@ -68,7 +68,7 @@ class ShowOnTvButton(TvStreamerEntity, ButtonEntity):
         self._link = link
         if link:
             self._attr_translation_key = "show_link_on_tv"
-            self._attr_translation_placeholders = {"link": link}
+            self._attr_translation_placeholders = {"link": link.replace("_", " ").title()}
 
     async def async_press(self) -> None:
         check_can_show(self.hass, self.coordinator)
