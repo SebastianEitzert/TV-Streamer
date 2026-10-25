@@ -4,6 +4,10 @@
 
 🇩🇪 [Deutsche Fassung](README.de.md)
 
+If TV Streamer is useful to you, you can support its development:
+
+<p align="center"><a href="https://buymeacoffee.com/SebastianEitzert"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=SebastianEitzert&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="45"></a></p>
+
 Show Home Assistant dashboards on TVs, served from a small VM: one Chromium per TV, rendered off-screen and sent to the TV as
 **MSE** video, **WebRTC** or via **Sunshine/Moonlight**. Mouse, TV remote and touch work on the dashboard as if a PC were connected.
 

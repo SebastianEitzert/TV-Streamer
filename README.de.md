@@ -4,6 +4,10 @@
 
 🇬🇧 [English version](README.md)
 
+Wenn dir der TV-Streamer gefällt, kannst du die Entwicklung unterstützen:
+
+<p align="center"><a href="https://buymeacoffee.com/SebastianEitzert"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=SebastianEitzert&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="45"></a></p>
+
 Home-Assistant-Dashboards auf Fernsehern, geliefert von einer kleinen VM: je Fernseher ein Chromium, unsichtbar gezeichnet und als
 **MSE**-Video, über **WebRTC** oder über **Sunshine/Moonlight** zum Fernseher geschickt. Maus, Fernbedienung und Touch bedienen das
 Dashboard, als hinge ein PC am Fernseher.
