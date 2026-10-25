@@ -82,6 +82,7 @@
           "lg_session_token": "LG-Developer-Mode-Session-Token"
         },
         "data_description": {
+          "media_player": "Bei LG-Fernsehern die Entität der LG-webOS-Integration – nicht den Music-Assistant- oder einen anderen Lautsprecher-Eintrag desselben Fernsehers.",
           "video_path": "MSE: schärfstes Bild im Fernseher-Browser. WebRTC: geringste Verzögerung (nicht bei webOS 4). Moonlight: Der Fernseher nutzt die Moonlight-App, die VM Sunshine – schnellste Reaktion.",
           "width": "Bildgröße, die der Browser zeichnet. webOS 4: 1920×1080, webOS 5 und neuer: 2560×1440. 4K ist für Software-Kodierung zu viel.",
           "zoom": "Seitenzoom. Seitengröße in Punkten = Breite ÷ Zoom (2560 bei 1,67 → 1533 Punkte).",
@@ -159,6 +160,7 @@
       "name_taken": "Dieser Name ist schon vergeben.",
       "lg_token_invalid": "LG hat dieses Token nicht angenommen. Bitte erneut aus dem webOS Dev Manager kopieren.",
       "lg_token_not_lg": "Das Session-Token wird nur bei LG-Fernsehern verwendet.",
+      "not_webostv": "Bitte den Fernseher aus der LG-webOS-Integration wählen – andere Mediaplayer desselben Fernsehers (z. B. Music Assistant) können Moonlight nicht starten.",
       "invalid_url": "Keine gültige Adresse. Beispiele: 192.168.1.160, loxone.local"
     },
     "abort": {

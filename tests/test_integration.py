@@ -159,19 +159,25 @@ async def test_config_and_options_flow(hass: HomeAssistant, aioclient_mock) -> N
         flow["flow_id"], {"name": "Kitchen", "tv_type": "lg_webos5"}
     )
     assert flow["step_id"] == "streamer"
-    flow = await hass.config_entries.options.async_configure(
-        flow["flow_id"],
-        {
-            "name": "Kitchen",
-            "tv_type": "lg_webos5",
-            "video_path": "moonlight",
-            "width": 2560,
-            "height": 1440,
-            "zoom": 1.67,
-            "bitrate": 16,
-            "lg_session_token": f"{LG_RENEW_URL}?sessionToken=tok",
-        },
-    )
+    from homeassistant.helpers import entity_registry as er
+
+    reg = er.async_get(hass)
+    speaker = reg.async_get_or_create("media_player", "music_assistant", "ma1", suggested_object_id="kitchen_tv_2").entity_id
+    tv = reg.async_get_or_create("media_player", "webostv", "lg1", suggested_object_id="kitchen_tv").entity_id
+    form = {
+        "name": "Kitchen",
+        "tv_type": "lg_webos5",
+        "video_path": "moonlight",
+        "width": 2560,
+        "height": 1440,
+        "zoom": 1.67,
+        "bitrate": 16,
+        "lg_session_token": f"{LG_RENEW_URL}?sessionToken=tok",
+    }
+    # the Music Assistant speaker of an LG TV cannot start Moonlight
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {**form, "media_player": speaker})
+    assert flow["errors"] == {"media_player": "not_webostv"}
+    flow = await hass.config_entries.options.async_configure(flow["flow_id"], {**form, "media_player": tv})
     assert flow["type"] is FlowResultType.CREATE_ENTRY  # saved right away, no extra "save" step
     await hass.async_block_till_done()
     streamer = entry.options[CONF_STREAMERS][0]

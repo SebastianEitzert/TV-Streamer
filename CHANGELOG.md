@@ -2,6 +2,10 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.2 – unreleased
+- Streamer settings: for LG TVs the TV must be the entity of the LG webOS integration. The Music Assistant speaker of the
+  same TV has a similar name but cannot start apps – "Show on TV" then only switched the tab and nothing seemed to happen.
+
 ## 0.4.1 – 2026-10-25
 - "Show on TV" starts Moonlight also when it still holds a stream in the background while another app (e.g. YouTube)
   is in front – before, the button only switched the tab and the TV stayed on the other app.

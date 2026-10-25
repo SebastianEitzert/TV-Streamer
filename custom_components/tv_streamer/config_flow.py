@@ -14,6 +14,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.network import NoURLAvailableError, get_url
@@ -109,6 +110,11 @@ def normalize_url(value: str, base: str | None = None) -> str | None:
         return None
     text = str(url)
     return text if url.raw_path not in ("", "/") or text.endswith("/") else text + "/"
+
+
+def _is_webostv(hass: HomeAssistant, entity_id: str) -> bool:
+    entry = er.async_get(hass).async_get(entity_id)
+    return entry is not None and entry.platform == "webostv"
 
 
 def default_options(hass: HomeAssistant, ha_url: str) -> dict[str, Any]:
@@ -309,6 +315,10 @@ class TvStreamerOptionsFlow(OptionsFlow):
             new_id = self._edit_id or slugify(values[CONF_NAME])
             if not new_id or (self._edit_id is None and self._id_taken(new_id)):
                 errors[CONF_NAME] = "name_taken"
+            tv = values.get(CONF_MEDIA_PLAYER)
+            if tv and values[CONF_TV_TYPE] in LG_TV_TYPES and not _is_webostv(self.hass, tv):
+                # e.g. the Music Assistant speaker of the TV – it has a similar name but cannot start apps
+                errors[CONF_MEDIA_PLAYER] = "not_webostv"
             token = values.get(CONF_LG_TOKEN, "")
             if token and values[CONF_TV_TYPE] not in LG_TV_TYPES:
                 errors[CONF_LG_TOKEN] = "lg_token_not_lg"
