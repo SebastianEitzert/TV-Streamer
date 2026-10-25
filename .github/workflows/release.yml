@@ -1,6 +1,10 @@
 name: Release
 
+# Push a tag "v<manifest version>" (e.g. v0.4.0): this workflow creates the GitHub release with the notes from
+# CHANGELOG.md and attaches tv_streamer.zip for HACS. A release published by hand gets the zip as well.
 on:
+  push:
+    tags: ["v*"]
   release:
     types: [published]
 
@@ -18,6 +22,18 @@ jobs:
           [ "v$v" = "${GITHUB_REF_NAME}" ] || { echo "manifest version $v does not match tag ${GITHUB_REF_NAME}"; exit 1; }
       - name: Build zip for HACS
         run: cd custom_components/tv_streamer && zip -r ../../tv_streamer.zip . -x '__pycache__/*'
+      - name: Create the release (tag push)
+        if: github.event_name == 'push'
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          python3 - > notes.md <<'EOF'
+          import json, re
+          v = json.load(open("custom_components/tv_streamer/manifest.json"))["version"]
+          s = open("CHANGELOG.md").read()
+          m = re.search(r"^## " + re.escape(v) + r"\b.*?\n(.*?)(?=^## |\Z)", s, re.S | re.M)
+          print(m.group(1).strip() if m else "See CHANGELOG.md.")
+          EOF
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file notes.md
       - name: Upload
         env: {GH_TOKEN: "${{ github.token }}"}
         run: gh release upload "${GITHUB_REF_NAME}" tv_streamer.zip --clobber
