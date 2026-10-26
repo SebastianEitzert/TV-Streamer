@@ -11,6 +11,26 @@ index c636f42..3183fc6 100644
      "icon": "icon.png",
      "iconColor": "#ffffff",
      "largeIcon": "icon_large.png",
+diff --git a/src/app/app.c b/src/app/app.c
+index ab784f3..9e5c66f 100644
+--- a/src/app/app.c
++++ b/src/app/app.c
+@@ -127,8 +127,15 @@ void app_deinit(app_t *app) {
+     commons_logging_deinit();
+ }
+ 
++#if TARGET_WEBOS
++void stream_input_webos_pointer_tick(void);
++#endif
++
+ void app_run_loop(app_t *app) {
+     app_process_events(app);
++#if TARGET_WEBOS
++    stream_input_webos_pointer_tick();  /* TV Streamer: pointer back after the arrow keys (keyboard_webos.c) */
++#endif
+     lv_task_handler();
+     SDL_Delay(1);
+ }
 diff --git a/src/app/lvgl/input/lv_drv_sdl_key.c b/src/app/lvgl/input/lv_drv_sdl_key.c
 index 4039940..ea9354c 100644
 --- a/src/app/lvgl/input/lv_drv_sdl_key.c
@@ -40,20 +60,47 @@ index 4039940..ea9354c 100644
  #endif
          if (app->session != NULL && session_handle_input_event(app->session, &e)) {
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
-index 652545b..bc6a2f8 100644
+index 652545b..649f162 100644
 --- a/src/app/platform/webos/keyboard_webos.c
 +++ b/src/app/platform/webos/keyboard_webos.c
-@@ -16,6 +16,9 @@
+@@ -16,6 +16,36 @@
  #include "app_webos.h"
  
  #define TV_REMOTE_TOGGLE_SOFT_INPUT 0
 +#ifndef TV_STREAMER_REMOTE_KEYS
 +#define TV_STREAMER_REMOTE_KEYS 1
 +#endif
++
++#if TV_STREAMER_REMOTE_KEYS
++/* TV Streamer: webOS hides the Magic Remote pointer on every arrow key (5-way mode) and only shows it again once the
++ * remote has been moved far enough – until then no pointer motion arrives and the host's mouse seems frozen. While
++ * streaming, ask for the pointer right away and a few more times shortly after (webOS may hide it a little later). */
++static Uint32 tvs_show_at[4];
++
++static void tvs_pointer_back(void) {
++    static const Uint32 after_ms[4] = {30, 100, 200, 350};
++    Uint32 now = SDL_GetTicks();
++    SDL_webOSCursorVisibility(SDL_TRUE);
++    for (int i = 0; i < 4; i++) {
++        tvs_show_at[i] = now + after_ms[i];
++    }
++}
++
++/* Called from the main loop: the delayed requests of tvs_pointer_back(). */
++void stream_input_webos_pointer_tick(void) {
++    Uint32 now = SDL_GetTicks();
++    for (int i = 0; i < 4; i++) {
++        if (tvs_show_at[i] != 0 && SDL_TICKS_PASSED(now, tvs_show_at[i])) {
++            tvs_show_at[i] = 0;
++            SDL_webOSCursorVisibility(SDL_TRUE);
++        }
++    }
++}
++#endif
  
  bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_KeyboardEvent *event, short *keyCode) {
      session_t *session = input->session;
-@@ -46,7 +49,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -46,7 +76,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
              if (input->view_only) {
                  return true;
              }
@@ -69,7 +116,7 @@ index 652545b..bc6a2f8 100644
                  LiSendMouseButtonEvent(event->type == SDL_KEYDOWN ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE,
                                         BUTTON_RIGHT);
                  return true;
-@@ -57,6 +68,44 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -57,6 +95,49 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
          case SDL_SCANCODE_WEBOS_RED:
              bus_pushevent(USER_OPEN_OVERLAY, NULL, NULL);
              return true;
@@ -96,11 +143,16 @@ index 652545b..bc6a2f8 100644
 +            *keyCode = VK_F16;
 +            return false;
 +        case SDL_SCANCODE_WEBOS_CURSOR_HIDE:
-+            /* TV Streamer: webOS hides the Magic Remote pointer after the arrow keys and stops sending pointer
-+             * motion until the remote is shaken – the host's pointer then seems frozen. While streaming, switch
-+             * the pointer straight back on so the next movement of the remote moves the mouse again. */
-+            SDL_webOSCursorVisibility(SDL_TRUE);
++            /* TV Streamer: webOS reports hiding the pointer – while streaming, switch it straight back on. */
++            tvs_pointer_back();
 +            return true;
++        case SDL_SCANCODE_UP:
++        case SDL_SCANCODE_DOWN:
++        case SDL_SCANCODE_LEFT:
++        case SDL_SCANCODE_RIGHT:
++            /* TV Streamer: the arrow key still goes to the host; the pointer is asked back at once and shortly after */
++            tvs_pointer_back();
++            return false;
 +        case SDL_SCANCODE_WEBOS_CURSOR_SHOW:
 +            return true;
 +        case SDL_SCANCODE_PAUSE:

@@ -9,8 +9,9 @@ Changes against upstream:
 - **Yellow** is always a right click while streaming (upstream only after a click in Moonlight's own UI – a stream
   started from Home Assistant or with OK made it a menu key, which Sunshine on Linux drops).
 - The **pointer** keeps working right after the arrow keys, without shaking the Magic Remote: upstream switches the
-  Magic Remote pointer off on every arrow key – also while streaming, so the host's mouse froze for a moment. This build
-  leaves it on while streaming, and should webOS hide it anyway (`CURSOR_HIDE`), switches it straight back on.
+  Magic Remote pointer off on every arrow key – also while streaming – and webOS itself hides it in 5-way mode, so the
+  host's mouse froze for a moment. While streaming this build leaves it on, and after every arrow key (and whenever
+  webOS reports hiding it) asks for it again at once and after 30, 100, 200 and 350 ms.
 - **Pause** is sent as F17 (TV Streamer event `pause`), **Play** as F15 (event `play`).
 
 Install over the official Moonlight with the webOS Dev Manager (same app id – pairings and settings stay), then switch the
