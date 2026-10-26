@@ -2,6 +2,11 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.5 – 2026-10-26
+- The remote keys from the TV Streamer build of Moonlight (blue, green, play, stop, pause) also reach the page itself as
+  a `tv-streamer-key` event, e.g. for the floor plan card Floorplan Lite: play / pause with the pointer over a room
+  start / pause its music. The Home Assistant event entity stays as it is.
+
 ## 0.4.4 – 2026-10-26
 - New binary sensor **On TV** per streamer: on only when the streamer's own TV shows it in front – Moonlight: the TV has
   the Moonlight app in front and a stream runs (Moonlight keeps streams open in the background, and any paired device

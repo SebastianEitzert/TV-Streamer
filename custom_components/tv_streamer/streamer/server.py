@@ -219,7 +219,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-26.42"
+FASSUNG = "2026-10-26.43"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -754,7 +754,12 @@ MOONLIGHT_JS = r"""(() => {
     const fb = ['F13', 'F14', 'F15', 'F16', 'F17', 'MediaPlayPause', 'MediaStop'].find((k) => e.code === k || e.key === k);
     if (fb) {
       e.preventDefault(); e.stopImmediatePropagation();
-      if (!e.repeat) { melde({ fernbedienung: fb }); }
+      if (!e.repeat) {
+        melde({ fernbedienung: fb });
+        /* .43: auch an die Seite selbst – z. B. die Grundriss-Karte: Wiedergabe/Pause über einem Raum = seine Musik */
+        const name = { F13: 'blue', F14: 'green', F15: 'play', F16: 'stop', F17: 'pause', MediaPlayPause: 'play', MediaStop: 'stop' }[fb];
+        try { window.dispatchEvent(new CustomEvent('tv-streamer-key', { detail: { key: name } })); } catch (x) {}
+      }
       return;
     }
     if (e.key === 'PageUp' || e.key === 'PageDown') {
