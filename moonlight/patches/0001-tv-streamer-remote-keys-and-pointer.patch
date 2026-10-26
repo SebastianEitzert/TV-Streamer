@@ -60,10 +60,10 @@ index 4039940..ea9354c 100644
  #endif
          if (app->session != NULL && session_handle_input_event(app->session, &e)) {
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
-index 652545b..649f162 100644
+index 652545b..b738b5c 100644
 --- a/src/app/platform/webos/keyboard_webos.c
 +++ b/src/app/platform/webos/keyboard_webos.c
-@@ -16,6 +16,36 @@
+@@ -16,6 +16,54 @@
  #include "app_webos.h"
  
  #define TV_REMOTE_TOGGLE_SOFT_INPUT 0
@@ -86,6 +86,24 @@ index 652545b..649f162 100644
 +    }
 +}
 +
++/* Measurement for the TV Streamer: marker keys the streamer page sees but ignores – F18 = webOS hid the pointer,
++ * F19 = webOS shows it again, F20 = first pointer motion after an arrow key. The streamer measures the times between
++ * them and the arrow key and reports them to Home Assistant. */
++static bool tvs_wait_motion = false;
++
++static void tvs_marker(short vk) {
++    LiSendKeyboardEvent(0x8000 | vk, KEY_ACTION_DOWN, 0);
++    LiSendKeyboardEvent(0x8000 | vk, KEY_ACTION_UP, 0);
++}
++
++/* Called for every pointer motion while streaming (session_mouse.c). */
++void stream_input_webos_motion_seen(void) {
++    if (tvs_wait_motion) {
++        tvs_wait_motion = false;
++        tvs_marker(VK_F20);
++    }
++}
++
 +/* Called from the main loop: the delayed requests of tvs_pointer_back(). */
 +void stream_input_webos_pointer_tick(void) {
 +    Uint32 now = SDL_GetTicks();
@@ -100,7 +118,7 @@ index 652545b..649f162 100644
  
  bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_KeyboardEvent *event, short *keyCode) {
      session_t *session = input->session;
-@@ -46,7 +76,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -46,7 +94,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
              if (input->view_only) {
                  return true;
              }
@@ -116,7 +134,7 @@ index 652545b..649f162 100644
                  LiSendMouseButtonEvent(event->type == SDL_KEYDOWN ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE,
                                         BUTTON_RIGHT);
                  return true;
-@@ -57,6 +95,49 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -57,6 +113,58 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
          case SDL_SCANCODE_WEBOS_RED:
              bus_pushevent(USER_OPEN_OVERLAY, NULL, NULL);
              return true;
@@ -144,16 +162,25 @@ index 652545b..649f162 100644
 +            return false;
 +        case SDL_SCANCODE_WEBOS_CURSOR_HIDE:
 +            /* TV Streamer: webOS reports hiding the pointer – while streaming, switch it straight back on. */
-+            tvs_pointer_back();
++            if (event->state == SDL_PRESSED) {
++                tvs_marker(VK_F18);
++                tvs_pointer_back();
++            }
 +            return true;
 +        case SDL_SCANCODE_UP:
 +        case SDL_SCANCODE_DOWN:
 +        case SDL_SCANCODE_LEFT:
 +        case SDL_SCANCODE_RIGHT:
 +            /* TV Streamer: the arrow key still goes to the host; the pointer is asked back at once and shortly after */
-+            tvs_pointer_back();
++            if (event->state == SDL_PRESSED) {
++                tvs_wait_motion = true;
++                tvs_pointer_back();
++            }
 +            return false;
 +        case SDL_SCANCODE_WEBOS_CURSOR_SHOW:
++            if (event->state == SDL_PRESSED) {
++                tvs_marker(VK_F19);
++            }
 +            return true;
 +        case SDL_SCANCODE_PAUSE:
 +            /* Pause = F17. Sent here directly: the generic mapping later in stream_input_handle_key would turn
@@ -166,3 +193,25 @@ index 652545b..649f162 100644
  #if TV_REMOTE_TOGGLE_SOFT_INPUT
              case SDL_SCANCODE_WEBOS_BLUE:
                  if (absinput_no_control) return true;
+diff --git a/src/app/stream/input/session_mouse.c b/src/app/stream/input/session_mouse.c
+index 6f3114e..81a97cc 100644
+--- a/src/app/stream/input/session_mouse.c
++++ b/src/app/stream/input/session_mouse.c
+@@ -59,10 +59,17 @@ void stream_input_handle_mwheel(stream_input_t *input, const SDL_MouseWheelEvent
+     }
+ }
+ 
++#if TARGET_WEBOS
++void stream_input_webos_motion_seen(void);  /* TV Streamer measurement (platform/webos/keyboard_webos.c) */
++#endif
++
+ void stream_input_handle_mmotion(stream_input_t *input, const SDL_MouseMotionEvent *event, bool hw_mouse) {
+     if (input->view_only) {
+         return;
+     }
++#if TARGET_WEBOS
++    stream_input_webos_motion_seen();
++#endif
+     if (event->which == SDL_TOUCH_MOUSEID && LiGetHostFeatureFlags() & LI_FF_PEN_TOUCH_EVENTS) {
+         // Don't send mouse events from touch devices if the host supports pen/touch events
+         return;

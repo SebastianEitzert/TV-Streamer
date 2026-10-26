@@ -219,7 +219,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-26.43"
+FASSUNG = "2026-10-26.44"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -415,6 +415,10 @@ class Recent(logging.Handler):
 RECENT = Recent()
 log.addHandler(RECENT)
 
+# .44: Messungen „Zeiger nach Pfeiltaste“ (aus der Seite, Marken vom angepassten Moonlight) – gehen mit dem Status an HA
+ZEIGER = collections.deque(maxlen=20)
+ZEIGER_FELDER = ("k", "vorher", "hide", "show", "tv_bew", "host_bew", "los")
+
 CHILDREN = set()      # alle gestarteten Programme – werden beim Beenden mit beendet
 RUNNING = {}          # laufendes Programm je Name (supervise) – z. B. um go2rtc mit neuer Einstellung neu zu starten
 STOPPING = False
@@ -510,7 +514,7 @@ async def wait_for_x():
 
 
 def _tasten_belegen():
-    """Läuft im Executor: F13–F17 per XChangeKeyboardMapping auf die Tastencodes 191–195 legen (libX11 über ctypes)."""
+    """Läuft im Executor: F13–F20 per XChangeKeyboardMapping auf die Tastencodes 191–198 legen (libX11 über ctypes)."""
     import ctypes
     import ctypes.util
     x = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11") or "libX11.so.6")
@@ -521,8 +525,8 @@ def _tasten_belegen():
         raise OSError("Bildschirm %s nicht erreichbar" % CFG["display"])
     d = ctypes.c_void_p(d)
     try:
-        syms = (ctypes.c_ulong * 5)(*[x.XStringToKeysym(b"F%d" % n) for n in (13, 14, 15, 16, 17)])
-        x.XChangeKeyboardMapping(d, 191, 1, syms, 5)
+        syms = (ctypes.c_ulong * 8)(*[x.XStringToKeysym(b"F%d" % n) for n in range(13, 21)])
+        x.XChangeKeyboardMapping(d, 191, 1, syms, 8)
         x.XSync(d, 0)
         if x.XKeysymToKeycode(d, ctypes.c_ulong(syms[0])) != 191:
             raise OSError("Belegung nicht übernommen")
@@ -539,12 +543,12 @@ async def tasten_belegen():
     for _ in range(20):
         try:
             await asyncio.get_running_loop().run_in_executor(None, _tasten_belegen)
-            log.info("Tasten F13–F17 belegt (Farb- und Medientasten aus Moonlight)")
+            log.info("Tasten F13–F20 belegt (Farb- und Medientasten, Messmarken aus Moonlight)")
             return
         except Exception as e:
             fehler = e
             await asyncio.sleep(0.5)
-    log.warning("Tasten F13–F17 nicht belegt: %s", fehler)
+    log.warning("Tasten F13–F20 nicht belegt: %s", fehler)
 
 
 # ---------------------------------------------------------------- Chromium fernsteuern (CDP)
@@ -747,6 +751,36 @@ MOONLIGHT_JS = r"""(() => {
     try { walk(document.documentElement); } catch (e) {}
   }
   const melde = (o) => { try { if (window.__tvWechsel) { window.__tvWechsel(JSON.stringify(o)); } } catch (e) {} };
+  /* .44: Messung – warum hängt der Zeiger nach einer Pfeiltaste? Das angepasste Moonlight schickt Marken: F18 = webOS
+     blendet den Zeiger aus, F19 = webOS zeigt ihn wieder, F20 = erste Bewegung der Fernbedienung nach der Pfeiltaste.
+     Je Pfeiltaste gehen die Zeiten ab dem Tastendruck (ms, auch kurz davor = negativ) an den Streamer: hide, show,
+     tv_bew (Bewegung am Fernseher), host_bew (erste Zeigerbewegung hier), los (Taste losgelassen), vorher (ms seit der
+     letzten Bewegung vor der Taste). */
+  const Z = { r: null, t: 0, marken: [], bew: 0 };
+  const zMarke = (m) => { const t = performance.now(); Z.marken.push([m, t]); if (Z.marken.length > 40) { Z.marken.shift(); } };
+  const zEnde = () => {
+    clearTimeout(Z.t);
+    const r = Z.r; Z.r = null;
+    if (!r) { return; }
+    const out = { k: r.k, vorher: r.vorher };
+    for (const [m, t] of Z.marken) {
+      if (t >= r.t0 - 500 && t <= r.t0 + 3000 && out[m] === undefined) { out[m] = Math.round(t - r.t0); }
+    }
+    melde({ zeiger: out });
+  };
+  const zStart = (k) => {
+    zEnde();
+    const t0 = performance.now();
+    Z.r = { t0: t0, k: k.replace('Arrow', ''), vorher: Z.bew ? Math.round(t0 - Z.bew) : -1 };
+    Z.t = setTimeout(zEnde, 3000);
+  };
+  window.addEventListener('mousemove', () => { Z.bew = performance.now(); if (Z.r) { zMarke('host_bew'); } }, true);
+  window.addEventListener('keyup', (e) => { if (Z.r && /^Arrow/.test(e.key)) { zMarke('los'); } }, true);
+  window.addEventListener('keydown', (e) => {
+    const marke = { F18: 'hide', F19: 'show', F20: 'tv_bew' }[e.code];
+    if (marke) { e.preventDefault(); e.stopImmediatePropagation(); zMarke(marke); return; }
+    if (/^Arrow/.test(e.key) && !e.repeat) { zStart(e.key); }
+  }, true);
   window.addEventListener('keydown', (e) => {
     /* Angepasstes Moonlight (Repo-Ordner moonlight/): Blau = F13, Grün = F14, Wiedergabe = F15, Stopp = F16, Pause = F17
        (Sunshine verwirft unter Linux die Medientasten; die werden trotzdem erkannt, falls sie einmal ankommen) */
@@ -1068,6 +1102,11 @@ class Cdp:
                         asyncio.ensure_future(ha_taste(name))   # jede Taste auch als Ereignis tv_streamer_key in HA
                     elif d.get("taste"):
                         log.info("Moonlight: Taste %s (%s)", str(d.get("taste"))[:24], str(d.get("code") or "")[:24])
+                    elif isinstance(d.get("zeiger"), dict):   # .44: Messung Zeiger nach Pfeiltaste
+                        z = {k: v for k, v in d["zeiger"].items() if k in ZEIGER_FELDER}
+                        z["zeit"] = time.strftime("%H:%M:%S")
+                        ZEIGER.append(z)
+                        log.info("Moonlight: Zeiger nach Pfeil %s", " ".join("%s=%s" % (k, z[k]) for k in ZEIGER_FELDER if k in z))
             elif meth == "Runtime.bindingCalled" and p.get("name") == "__tvZugang":
                 asyncio.ensure_future(self.zugang(m.get("sessionId"), p.get("payload") or ""))
             elif meth == "Page.frameNavigated" and m.get("sessionId") and not (p.get("frame") or {}).get("parentId"):
@@ -2894,6 +2933,7 @@ def status_data(app):
         "zugang_gespeichert": bool(cdp.zugang_lesen()),
         "cpu": app.get("cpu"), "leistung": app.get("leistung"), "ruhig": cdp.ruhig,
         "popup": cdp.popup_ergebnisse[-20:],
+        "zeigermessung": list(ZEIGER),
         "moonlight": {"an": CFG["moonlight"], "stream": getattr(video, "moonlight", False),
                       "uuid": moonlight_uuid() if CFG["moonlight"] else "", "apps": moonlight_apps() if CFG["moonlight"] else {}},
     }

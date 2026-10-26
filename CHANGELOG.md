@@ -2,6 +2,14 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.6 – 2026-10-26
+- Measurement for the frozen pointer after the arrow keys: the TV Streamer build of Moonlight marks when webOS hides
+  and shows the Magic Remote pointer and when the remote moves first after an arrow key (keys F18–F20, never seen by
+  the page). The streamer measures the times per arrow key and the state sensor shows the last 20 as attribute
+  `pointer_measurement` (ms from the key press: `hide`, `show`, `tv_bew` = motion at the TV, `host_bew` = pointer
+  moved in the browser, `los` = key released, `vorher` = ms since the last motion before the key).
+- Moonlight build: asks for the pointer again after every arrow key (at once and after 30–350 ms).
+
 ## 0.4.5 – 2026-10-26
 - The remote keys from the TV Streamer build of Moonlight (blue, green, play, stop, pause) also reach the page itself as
   a `tv-streamer-key` event, e.g. for the floor plan card Floorplan Lite: play / pause with the pointer over a room

@@ -140,6 +140,8 @@ class StatusSensor(TvStreamerEntity, SensorEntity):
             "video_path": self.coordinator.streamer.get(CONF_VIDEO_PATH),
             "format": data.get("format"),
             "tv": self.coordinator.streamer.get(CONF_MEDIA_PLAYER),
+            # pointer after an arrow key (TV Streamer build of Moonlight): ms from the key press, see README
+            "pointer_measurement": data.get("zeigermessung") or [],
         }
 
 
