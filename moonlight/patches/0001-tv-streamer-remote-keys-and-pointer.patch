@@ -11,6 +11,34 @@ index c636f42..3183fc6 100644
      "icon": "icon.png",
      "iconColor": "#ffffff",
      "largeIcon": "icon_large.png",
+diff --git a/src/app/lvgl/input/lv_drv_sdl_key.c b/src/app/lvgl/input/lv_drv_sdl_key.c
+index 4039940..ea9354c 100644
+--- a/src/app/lvgl/input/lv_drv_sdl_key.c
++++ b/src/app/lvgl/input/lv_drv_sdl_key.c
+@@ -17,6 +17,10 @@ static bool read_webos_key(app_ui_input_t *input, const SDL_KeyboardEvent *event
+ 
+ static void webos_key_input_mode(app_ui_input_t *input, const SDL_KeyboardEvent *event);
+ 
++#ifndef TV_STREAMER_KEEP_POINTER
++#define TV_STREAMER_KEEP_POINTER 1
++#endif
++
+ #endif
+ 
+ static bool read_event(const SDL_Event *event, lv_drv_sdl_key_t *state);
+@@ -83,6 +87,12 @@ static void sdl_input_read(lv_indev_drv_t *drv, lv_indev_data_t *data) {
+         }
+     } else if (SDL_PeepEvents(&e, 1, SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYUP) > 0) {
+ #if TARGET_WEBOS
++#if TV_STREAMER_KEEP_POINTER
++        /* TV Streamer: no hiding of the Magic Remote pointer on arrow keys while streaming. webOS then stops pointer
++         * motion until the pointer is shown again, so the host's mouse froze for a moment after every arrow key
++         * (the dashboards use ↑/↓ over a room and move on with the pointer right away). */
++        if (app->session == NULL)
++#endif
+         webos_key_input_mode(input, &e.key);
+ #endif
+         if (app->session != NULL && session_handle_input_event(app->session, &e)) {
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
 index 652545b..bc6a2f8 100644
 --- a/src/app/platform/webos/keyboard_webos.c
