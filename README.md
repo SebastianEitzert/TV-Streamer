@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/images/logo.png" alt="TV Streamer" width="420"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/SebastianEitzert/TV-Streamer/main/docs/images/logo.png" alt="TV Streamer" width="420"></p>
 
 # TV Streamer for Home Assistant
 
