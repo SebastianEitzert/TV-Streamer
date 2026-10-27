@@ -17,7 +17,7 @@ Dashboard, als hinge ein PC am Fernseher.
 | `custom_components/tv_streamer` – Home-Assistant-Integration (Einrichtung in der Oberfläche, Geräte, Sensoren, Ereignisse der Fernbedienung, Verlängerung des LG-Developer-Modus, Konfig-Endpunkt für die VM), über HACS installierbar | **0.4** |
 | `vm/proxmox-vm.sh` – legt die VM in Proxmox VE an | **0.1** |
 | `custom_components/tv_streamer/streamer` – Streamer-Image (Docker: `server.py`, Chromium, Kodierer, Sunshine), liefert die Integration an die VM | **0.4** |
-| Grundriss-Karte für Lovelace (HACS) | geplant |
+| Grundriss-Karte für Lovelace: [Floorplan Lite](https://github.com/SebastianEitzert/HA-FloorplanLite) (HACS) | **0.10** |
 | `moonlight/` – angepasstes Moonlight für LG webOS (`.ipk`, GPL-3.0) | **im Test** |
 
 ## Anleitung
@@ -258,6 +258,34 @@ Jeder Streamer ist ein Gerät mit Sensoren (Zustand, Zuschauer; bei MSE/WebRTC a
 Lehnt LG eine Verlängerung ab, erscheint eine **Reparatur**, die ein neues Token abfragt.
 
 Umstieg einer bestehenden, von Hand eingerichteten Installation: [docs/migration.de.md](docs/migration.de.md).
+
+### 11. Empfohlen: Kiosk Mode und Grundriss-Karte
+
+**Kiosk Mode** blendet auf dem Fernseher Kopfzeile und Seitenleiste von Home Assistant aus. Installation: HACS →
+Frontend → [Kiosk Mode](https://github.com/NemesisRE/kiosk-mode). Eingestellt je Benutzer in der Roh-Konfiguration des
+Dashboards (⋮ → *Dashboard bearbeiten* → ⋮ → *Raw-Konfigurationseditor*), ganz oben neben `views:` – nur für den
+Benutzer, mit dem sich der Streamer anmeldet:
+
+```yaml
+kiosk_mode:
+  user_settings:
+    - users: [tv]          # Home-Assistant-Benutzer des Streamers, klein geschrieben
+      kiosk: true
+```
+
+Bearbeiten als dieser Benutzer: `?disable_km` an die Adresse hängen.
+
+**Grundriss-Karte** [Floorplan Lite](https://github.com/SebastianEitzert/HA-FloorplanLite): zeigt Haus, Grundstück
+und Außenbereiche mit Licht, Präsenz und Musik; Pfeile, Mausrad, Farb- und Medientasten der Fernbedienung über einem
+Raum steuern ihn. Für den Fernseher:
+
+- `height: fill` – die Karte füllt den Bildschirm, nichts scrollt; `legend: false` spart Platz.
+- Startansicht je Fernseher: der Streamer meldet seinen Namen als `window.__tvStreamer.name`, in der Karte als
+  Vorlagen-Variable `device` (`geraet`), z. B.
+  `follow: {tv: {type: fixed, template: "{{ 'wohnzimmer' if device == 'wohnzimmer' else 'schlafzimmer' }}"}}`.
+- Zurück auf der Fernbedienung führt vom Gebäude zurück aufs Grundstück.
+- Standort auf dem Handy (Geofence und Bluetooth-Räume mit **Bermuda**): siehe README von Floorplan Lite,
+  Abschnitt „Standort mit Bermuda“.
 
 ## Fehlersuche
 

@@ -6,9 +6,9 @@ Stand: 2026-10-27 (abends). Diese Datei wird bei jeder Änderung mitgepflegt. Ke
 
 | | |
 |---|---|
-| Letztes Release | **0.4.8**, Tag `v0.4.8` (GitHub-Release mit `tv_streamer.zip`) |
+| Letztes Release | **0.4.9**, Tag `v0.4.9` (GitHub-Release mit `tv_streamer.zip`) |
 | Streamer-Fassung im Paket | `FASSUNG = "2026-10-27.47"` (`custom_components/tv_streamer/streamer/server.py`) |
-| In Home Assistant eingespielt | Integration 0.4.7, Fassung `2026-10-27.45` (Sensor `sensor.tv_streamer_schlafzimmer_fassung`). 0.4.8 ist veröffentlicht, aber noch **nicht** über HACS installiert. |
+| In Home Assistant eingespielt | Integration 0.4.8, Fassung `2026-10-27.47` (Sensor `sensor.tv_streamer_schlafzimmer_fassung`). 0.4.9 ändert nur Moonlight und README. |
 | Dateien unter `www/` | keine |
 | Moonlight-IPK | Test-Build vom 27.10. 20:31: https://github.com/SebastianEitzert/TV-Streamer/actions/runs/40578741552 (Artefakt `moonlight-webos-tvstreamer`, App „Moonlight TVS“, moonlight-tv v1.6.37 + Patch). Auf den Fernsehern ist noch der Build davor installiert. |
 | Branch | nur `main` |
@@ -17,7 +17,7 @@ Stand: 2026-10-27 (abends). Diese Datei wird bei jeder Änderung mitgepflegt. Ke
 
 Für die Grundstücks-Karte (Floorplan Lite) wichtig:
 - **Erledigt:** `window.__tvStreamer = {name}` für Gerätenamen (0.4.7), Pop-up-Erkennung ignoriert `#plan=…` (Seite: .45; Zurück-Logik im Streamer: .46, 0.4.8).
-- **Offen / Test läuft:** Mauszeiger hängt nach Pfeiltasten. Messung (0.4.6) ergab: webOS liefert nach einer Pfeiltaste 1–3 s keine Zeigerbewegung und meldet kein Aus-/Einblenden; Wiedereinschalten des Zeigers (bisheriger Patch) hilft daher nicht. Test-Build 0.4.8: Moonlight abonniert `luna://com.webos.service.mrcu/sensor/getSensorData` und bewegt in der Sperrzeit die Maus selbst. Marken F21 (Daten kamen), F22 (Dienst nicht aufrufbar), F23 (abgelehnt) erscheinen in `pointer_measurement`. Ergebnis von Sebastians Test steht aus.
+- **Offen / Test läuft:** Mauszeiger hängt nach Pfeiltasten. Messung (0.4.6) ergab: webOS liefert nach einer Pfeiltaste 1–3 s keine Zeigerbewegung und meldet kein Aus-/Einblenden; Wiedereinschalten des Zeigers (bisheriger Patch) hilft daher nicht. Test-Build 0.4.8: Moonlight abonniert `luna://com.webos.service.mrcu/sensor/getSensorData` und bewegt in der Sperrzeit die Maus selbst. Marken F21 (Daten kamen), F22 (Dienst nicht aufrufbar), F23 (abgelehnt) erscheinen in `pointer_measurement`. Test 1 (27.10. 21:48): Dienst antwortet, aber seine Daten kommen erst 1,4–1,7 s nach der Pfeiltaste – genauso spät wie webOS' eigene Zeigerbewegung (1,0–1,3 s). Die Fernbedienung selbst pausiert offenbar. Test 2 (0.4.9): `sleep:false` beim Abonnement. Wenn das nichts ändert: Problem ist in der Magic Remote, keine weitere Software-Lösung; Empfehlung Pfeiltasten meiden.
 - **Halb fertig:** nichts im Code. Datei/Funktion des Tests: `moonlight/patches/0001-tv-streamer-remote-keys-and-pointer.patch` → `keyboard_webos.c`: `tvs_sensor_start`, `tvs_sensor_cb`; `CMakeLists.txt`: `TVS_HELPERS`.
 
 ## 3. Nicht committete / nicht gepushte Änderungen

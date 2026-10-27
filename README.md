@@ -16,7 +16,7 @@ Show Home Assistant dashboards on TVs, served from a small VM: one Chromium per 
 | `custom_components/tv_streamer` – Home Assistant integration (setup in the UI, devices, sensors, remote key events, LG developer mode renewal, config endpoint for the VM), installable with HACS | **0.4** |
 | `vm/proxmox-vm.sh` – creates the VM on Proxmox VE | **0.1** |
 | `custom_components/tv_streamer/streamer` – streamer image (Docker: `server.py`, Chromium, encoders, Sunshine), delivered to the VM by the integration | **0.4** |
-| Floor plan Lovelace card (HACS) | planned |
+| Floor plan Lovelace card: [Floorplan Lite](https://github.com/SebastianEitzert/HA-FloorplanLite) (HACS) | **0.10** |
 | `moonlight/` – patched Moonlight for LG webOS (`.ipk`, GPL-3.0) | **testing** |
 
 ## Setup guide
@@ -253,6 +253,32 @@ in automations) binary sensors, and buttons (start view, reload, back, show tab,
 **repair** appears that asks for a new token.
 
 Moving an existing hand-made installation: see [docs/migration.md](docs/migration.md).
+
+### 11. Recommended: Kiosk Mode and the floor plan card
+
+**Kiosk Mode** hides Home Assistant's header and sidebar on the TV. Install: HACS → Frontend →
+[Kiosk Mode](https://github.com/NemesisRE/kiosk-mode). Set per user in the dashboard's raw configuration (⋮ → *Edit
+dashboard* → ⋮ → *Raw configuration editor*), at the top next to `views:` – only for the user the streamer logs in with:
+
+```yaml
+kiosk_mode:
+  user_settings:
+    - users: [tv]          # the streamer's Home Assistant user, lower case
+      kiosk: true
+```
+
+To edit as that user: add `?disable_km` to the address.
+
+**Floor plan card** [Floorplan Lite](https://github.com/SebastianEitzert/HA-FloorplanLite): house, property and areas
+outside with light, presence and music; arrows, wheel, colour and media keys of the remote over a room control it.
+For the TV:
+
+- `height: fill` – the card fills the screen, nothing scrolls; `legend: false` saves room.
+- Start view per TV: the streamer reports its name as `window.__tvStreamer.name`, in the card the template variable
+  `device`, e.g. `follow: {tv: {type: fixed, template: "{{ 'living_room' if device == 'living_room' else 'bedroom' }}"}}`.
+- Back on the remote leads from a building back to the property.
+- Location on the phone (geofence and Bluetooth rooms with **Bermuda**): see the Floorplan Lite README, section
+  „Location with Bermuda“.
 
 ## Troubleshooting
 

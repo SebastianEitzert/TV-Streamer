@@ -2,6 +2,10 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.9 – 2026-10-27
+- Moonlight (test 2): the Magic Remote sensor is asked to stay awake (`sleep: false`) – in test 1 its data paused for as long as webOS' pointer after an arrow key (1.0–1.7 s).
+- README: Kiosk Mode and the floor plan card (Floorplan Lite) on the TV, with a pointer to the location (Bermuda) section of Floorplan Lite.
+
 ## 0.4.8 – 2026-10-27
 - The Moonlight IPK is attached to every release (also as `moonlight-tvs_arm.ipk`); the README links the latest one.
 - Moonlight (test): after an arrow key the patched Moonlight reads where the Magic Remote points straight from webOS' remote service (`com.webos.service.mrcu`) and moves the host's mouse with it until real pointer motion comes back – webOS itself sends none for up to 3 s. New measurement markers F21 (sensor data came), F22 (service not callable), F23 (refused) in `pointer_measurement` (`sensor`, `sensor_fehler`, `sensor_abgelehnt`).

@@ -78,10 +78,10 @@ index 4039940..ea9354c 100644
  #endif
          if (app->session != NULL && session_handle_input_event(app->session, &e)) {
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
-index 652545b..ee5ae28 100644
+index 652545b..0200ac3 100644
 --- a/src/app/platform/webos/keyboard_webos.c
 +++ b/src/app/platform/webos/keyboard_webos.c
-@@ -16,6 +16,124 @@
+@@ -16,6 +16,126 @@
  #include "app_webos.h"
  
  #define TV_REMOTE_TOGGLE_SOFT_INPUT 0
@@ -162,6 +162,8 @@ index 652545b..ee5ae28 100644
 +    return true;
 +}
 +
++/* sleep:false – the remote shall keep reporting its position (test 27.10.: with sleep:true the data paused for as long
++ * as webOS' own pointer motion, 1.0–1.7 s after an arrow key) */
 +static void tvs_sensor_start(void) {
 +    if (tvs_sensor_started) return;
 +    tvs_sensor_started = true;
@@ -171,7 +173,7 @@ index 652545b..ee5ae28 100644
 +    context.ctx.pub = 1;
 +    context.ctx.callback = tvs_sensor_cb;
 +    if (HLunaServiceCall("luna://com.webos.service.mrcu/sensor/getSensorData",
-+                         "{\"callbackInterval\":1,\"subscribe\":true,\"sleep\":true,\"autoAlign\":false}",
++                         "{\"callbackInterval\":1,\"subscribe\":true,\"sleep\":false,\"autoAlign\":false}",
 +                         &context.ctx) != 0) {
 +        tvs_marker(VK_F22);
 +    }
@@ -206,7 +208,7 @@ index 652545b..ee5ae28 100644
  
  bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_KeyboardEvent *event, short *keyCode) {
      session_t *session = input->session;
-@@ -46,7 +164,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -46,7 +166,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
              if (input->view_only) {
                  return true;
              }
@@ -222,7 +224,7 @@ index 652545b..ee5ae28 100644
                  LiSendMouseButtonEvent(event->type == SDL_KEYDOWN ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE,
                                         BUTTON_RIGHT);
                  return true;
-@@ -57,6 +183,62 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -57,6 +185,62 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
          case SDL_SCANCODE_WEBOS_RED:
              bus_pushevent(USER_OPEN_OVERLAY, NULL, NULL);
              return true;
