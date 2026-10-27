@@ -2,6 +2,12 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.7 – 2026-10-27
+- Every page knows its TV: `window.__tvStreamer = {name}` (the streamer's name) – the floor plan card Floorplan Lite uses
+  it to start each TV in its own room.
+- Back on the TV: an address like `#plan=house&floor=og` (a view of the floor plan card) is no pop-up any more, Back goes
+  one view back there (from the building to the site). Pop-ups stay `#name`.
+
 ## 0.4.6 – 2026-10-26
 - Measurement for the frozen pointer after the arrow keys: the TV Streamer build of Moonlight marks when webOS hides
   and shows the Magic Remote pointer and when the remote moves first after an arrow key (keys F18–F20, never seen by

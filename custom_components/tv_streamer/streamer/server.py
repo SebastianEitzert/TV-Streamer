@@ -115,6 +115,10 @@ Fernseher – am Browser des Fernsehers und am MSE/WebRTC-Weg vorbei. Konfig und
 (/data/sunshine), nie in HA. Ein laufender Moonlight-Stream hält den HA-Reiter wach: Sunshine ruft über global_prep_cmd
 beim Start/Ende /api/cmd {"c":"moonlight","an":0|1} auf. Web-UI zum Anlegen von Benutzer/Kennwort und zur PIN-Kopplung:
 https://<IP der VM>:47990 (origin_web_ui_allowed = lan). Ports 47984–47990/tcp, 48010/tcp, 47998–48000/udp.
+
+27.10.2026 (.45): Jede Seite kennt den Fernseher: window.__tvStreamer = {name: TV_NAME} (Grundriss-Karte: Startansicht
+je Gerät). Zurück am Fernseher: eine Adresse wie #plan=haus&floor=og (Ansicht der Grundriss-Karte) gilt nicht als
+Pop-up – Zurück führt dort eine Ansicht zurück (vom Gebäude zum Grundstück). Pop-ups bleiben #name ohne „=“.
 """
 import asyncio
 import base64
@@ -219,7 +223,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-26.44"
+FASSUNG = "2026-10-27.45"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -573,6 +577,9 @@ OHNE_HINWEIS_JS = r"""(() => {
   for (const t of ['pointerover', 'mouseover', 'mousemove']) { window.addEventListener(t, weg, true); }
 })()"""
 
+# .45: Name des Fernsehers für die Seite (z. B. Grundriss-Karte: Startansicht je Gerät)
+GERAET_JS = "window.__tvStreamer = Object.assign(window.__tvStreamer || {}, {name: %s});" % json.dumps(CFG["name"])
+
 # Textfeld mit Fokus melden (.27): der Fernseher hat keine Tastatur für die Seite im Chromium – die Empfangsseite blendet
 # ein eigenes Eingabefeld ein. Meldet über die Bindung __tvTastatur: an/aus, Art (text/password/number), Bezeichnung und –
 # außer bei Passwörtern – den aktuellen Inhalt.
@@ -751,6 +758,8 @@ MOONLIGHT_JS = r"""(() => {
     try { walk(document.documentElement); } catch (e) {}
   }
   const melde = (o) => { try { if (window.__tvWechsel) { window.__tvWechsel(JSON.stringify(o)); } } catch (e) {} };
+  /* .45: Pop-up = #name; #plan=…&floor=… (Ansicht der Grundriss-Karte) ist keins */
+  const popup = () => location.hash.length > 1 && location.hash.indexOf('=') < 0;
   /* .44: Messung – warum hängt der Zeiger nach einer Pfeiltaste? Das angepasste Moonlight schickt Marken: F18 = webOS
      blendet den Zeiger aus, F19 = webOS zeigt ihn wieder, F20 = erste Bewegung der Fernbedienung nach der Pfeiltaste.
      Je Pfeiltaste gehen die Zeiten ab dem Tastendruck (ms, auch kurz davor = negativ) an den Streamer: hide, show,
@@ -799,14 +808,14 @@ MOONLIGHT_JS = r"""(() => {
     if (e.key === 'PageUp' || e.key === 'PageDown') {
       e.preventDefault(); e.stopImmediatePropagation();
       if (!e.repeat) { melde({ richtung: e.key === 'PageUp' ? 1 : -1 }); }
-    } else if (e.key === 'Escape' && !e.repeat && location.port === '8123' && !(location.hash && location.hash.length > 1)) {
+    } else if (e.key === 'Escape' && !e.repeat && location.port === '8123' && !popup()) {
       /* .37o: Zurück am Fernseher = Escape. Ohne Pop-up und ohne offenen HA-Dialog eine Seite zurück (z. B. aus /tv-dashboard/ranch) */
       const ha = document.querySelector('home-assistant');
       const r = ha && ha.shadowRoot;
       const dialog = r && Array.from(r.children).some((c) => /dialog/.test(c.localName));
       /* .40: nicht selbst history.back() – das führte von der Startseite auf die leere Ruheseite (about:blank). Der Streamer
          geht zurück wie der Zurück-Knopf: nie hinter die Startseite, leere Seiten und Fehlerseiten übersprungen. */
-      if (!dialog) { setTimeout(() => { if (!(location.hash && location.hash.length > 1)) melde({ zurueck: 1 }); }, 120); }
+      if (!dialog) { setTimeout(() => { if (!popup()) melde({ zurueck: 1 }); }, 120); }
     } else if (e.key && e.key.length > 1) {
       melde({ taste: e.key, code: e.code });
     }
@@ -1295,6 +1304,9 @@ class Cdp:
             # keine Hinweistexte (.27): für jede künftige Seite dieses Reiters und für die schon geladene
             await self.call("Page.addScriptToEvaluateOnNewDocument", {"source": OHNE_HINWEIS_JS}, sess=sid)
             await self.call("Runtime.evaluate", {"expression": OHNE_HINWEIS_JS}, sess=sid)
+            # .45: die Seite kennt den Fernseher (Grundriss-Karte: Startansicht je Gerät)
+            await self.call("Page.addScriptToEvaluateOnNewDocument", {"source": GERAET_JS}, sess=sid)
+            await self.call("Runtime.evaluate", {"expression": GERAET_JS}, sess=sid)
             # Textfelder melden (.27): Bindung bleibt über Neuladen erhalten, das Skript kommt in jede neue Seite
             await self.call("Runtime.addBinding", {"name": "__tvTastatur"}, sess=sid)
             await self.call("Page.addScriptToEvaluateOnNewDocument", {"source": TASTATUR_JS}, sess=sid)
