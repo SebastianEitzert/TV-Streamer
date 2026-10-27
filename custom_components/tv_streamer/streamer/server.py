@@ -223,7 +223,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-27.45"
+FASSUNG = "2026-10-27.46"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -1463,7 +1463,7 @@ class Cdp:
         try:
             r = await self.call("Page.getNavigationHistory", None, session=True)
             o = await self.call("Runtime.evaluate", {"returnByValue": True, "expression":
-                                "(function () { var s = history.state; return location.hash.length > 1 || !!(s && s.dialog && s.open); })()"},
+                                "(function () { var s = history.state; /* .46: #plan=…&floor=… ist eine Ansicht der Grundriss-Karte, kein Pop-up */ return (location.hash.length > 1 && location.hash.indexOf('=') < 0) || !!(s && s.dialog && s.open); })()"},
                                 session=True)
         except Exception:
             r = o = None

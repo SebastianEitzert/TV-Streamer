@@ -2,6 +2,9 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.4.8 – 2026-10-27
+- Back key on the TV: the address of a Floorplan Lite card view (`#plan=…&floor=…`) is no pop-up any more – Back from a building leads to the site instead of jumping out of the dashboard (white page).
+
 ## 0.4.7 – 2026-10-27
 - Every page knows its TV: `window.__tvStreamer = {name}` (the streamer's name) – the floor plan card Floorplan Lite uses
   it to start each TV in its own room.
