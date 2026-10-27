@@ -2,6 +2,13 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
+## 0.5.0 – 2026-10-28
+- Cleanup after the pointer measurements: the Magic Remote itself pauses its motion for 1–1.7 s after a key press, so
+  nothing on the TV can bridge it. Moonlight no longer subscribes to the remote's sensor service, sends no measurement
+  markers (F18–F23) and asks for the pointer once instead of five times; the streamer drops the measurement script, the
+  key codes F18–F23 and the sensor attribute `pointer_measurement`. Kept: colour and media keys (F13–F17), yellow =
+  right click, no pointer switch-off on arrow keys. README explains the pause.
+
 ## 0.4.9 – 2026-10-27
 - Moonlight (test 2): the Magic Remote sensor is asked to stay awake (`sleep: false`) – in test 1 its data paused for as long as webOS' pointer after an arrow key (1.0–1.7 s).
 - README: Kiosk Mode and the floor plan card (Floorplan Lite) on the TV, with a pointer to the location (Bermuda) section of Floorplan Lite.

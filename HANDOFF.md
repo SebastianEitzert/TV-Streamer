@@ -6,19 +6,19 @@ Stand: 2026-10-27 (abends). Diese Datei wird bei jeder Änderung mitgepflegt. Ke
 
 | | |
 |---|---|
-| Letztes Release | **0.4.9**, Tag `v0.4.9` (GitHub-Release mit `tv_streamer.zip`) |
-| Streamer-Fassung im Paket | `FASSUNG = "2026-10-27.47"` (`custom_components/tv_streamer/streamer/server.py`) |
-| In Home Assistant eingespielt | Integration 0.4.8, Fassung `2026-10-27.47` (Sensor `sensor.tv_streamer_schlafzimmer_fassung`). 0.4.9 ändert nur Moonlight und README. |
+| Letztes Release | **0.5.0**, Tag `v0.5.0` (GitHub-Release mit `tv_streamer.zip`) |
+| Streamer-Fassung im Paket | `FASSUNG = "2026-10-28.48"` (`custom_components/tv_streamer/streamer/server.py`) |
+| In Home Assistant eingespielt | Integration 0.4.9, Fassung `2026-10-27.47`. 0.5.0 ist veröffentlicht, aber noch nicht installiert. |
 | Dateien unter `www/` | keine |
-| Moonlight-IPK | Test-Build vom 27.10. 20:31: https://github.com/SebastianEitzert/TV-Streamer/actions/runs/40578741552 (Artefakt `moonlight-webos-tvstreamer`, App „Moonlight TVS“, moonlight-tv v1.6.37 + Patch). Auf den Fernsehern ist noch der Build davor installiert. |
+| Moonlight-IPK | Am Release jeder Version, neueste: https://github.com/SebastianEitzert/TV-Streamer/releases/latest/download/moonlight-tvs_arm.ipk (App „Moonlight TVS“, moonlight-tv v1.6.37 + Patch). Auf den Fernsehern: Test-Build 0.4.9, 0.5.0-IPK noch zu installieren. |
 | Branch | nur `main` |
 
 ## 2. Aktueller Auftrag
 
 Für die Grundstücks-Karte (Floorplan Lite) wichtig:
 - **Erledigt:** `window.__tvStreamer = {name}` für Gerätenamen (0.4.7), Pop-up-Erkennung ignoriert `#plan=…` (Seite: .45; Zurück-Logik im Streamer: .46, 0.4.8).
-- **Offen / Test läuft:** Mauszeiger hängt nach Pfeiltasten. Messung (0.4.6) ergab: webOS liefert nach einer Pfeiltaste 1–3 s keine Zeigerbewegung und meldet kein Aus-/Einblenden; Wiedereinschalten des Zeigers (bisheriger Patch) hilft daher nicht. Test-Build 0.4.8: Moonlight abonniert `luna://com.webos.service.mrcu/sensor/getSensorData` und bewegt in der Sperrzeit die Maus selbst. Marken F21 (Daten kamen), F22 (Dienst nicht aufrufbar), F23 (abgelehnt) erscheinen in `pointer_measurement`. Test 1 (27.10. 21:48): Dienst antwortet, aber seine Daten kommen erst 1,4–1,7 s nach der Pfeiltaste – genauso spät wie webOS' eigene Zeigerbewegung (1,0–1,3 s). Die Fernbedienung selbst pausiert offenbar. Test 2 (0.4.9): `sleep:false` beim Abonnement. Wenn das nichts ändert: Problem ist in der Magic Remote, keine weitere Software-Lösung; Empfehlung Pfeiltasten meiden.
-- **Halb fertig:** nichts im Code. Datei/Funktion des Tests: `moonlight/patches/0001-tv-streamer-remote-keys-and-pointer.patch` → `keyboard_webos.c`: `tvs_sensor_start`, `tvs_sensor_cb`; `CMakeLists.txt`: `TVS_HELPERS`.
+- **Abgeschlossen (nicht lösbar):** Mauszeiger pausiert nach Pfeiltasten 1–1,7 s. Messungen 26.–27.10.: die Magic Remote selbst sendet nach einem Tastendruck keine Bewegung – weder an den webOS-Zeiger noch an den Sensordienst `com.webos.service.mrcu` (auch nicht mit `sleep:false`). Versuche (Zeiger nicht abschalten, mehrfach wieder einschalten, Sensor-Abo mit eigener Mausbewegung) wurden in 0.5.0 bis auf „nicht abschalten + einmal wieder einschalten“ entfernt, ebenso alle Messmarken (F18–F23) und `pointer_measurement`. Nicht noch einmal versuchen.
+- **Halb fertig:** nichts.
 
 ## 3. Nicht committete / nicht gepushte Änderungen
 
@@ -54,8 +54,8 @@ tests/                          pytest
 
 ## 6. Bekannte Fehler, offene Fragen, Entscheidungen
 
-- **Zeiger hängt nach Pfeiltasten** (siehe 2): Ursache in webOS (keine Bewegungsdaten in 5-Way-Modus). Wenn der Sensor-Test scheitert: Pfeiltasten in der Skript-Vorlage meiden oder hinnehmen.
-- **Offene Frage an Sebastian:** Ergebnis des Sensor-Tests (Messung lesen: Attribut `pointer_measurement` am Zustand-Sensor `sensor.tv_streamer_schlafzimmer_zustand`).
+- **Zeiger pausiert nach Pfeiltasten** (siehe 2): Ursache Magic Remote, steht in der README. Empfehlung: Mausrad/Farbtasten statt Pfeile.
+- **Offene Fragen an Sebastian:** keine.
 - **Entscheidungen:** Zurück im Streamer nie hinter die Startseite (.40); F13–F23 per XChangeKeyboardMapping belegt, weil Sunshine unter Linux Medientasten verwirft; Farb-/Medientasten als F13–F17; Messmarken F18–F23.
 
 ## 7. Geänderte HA-Objekte

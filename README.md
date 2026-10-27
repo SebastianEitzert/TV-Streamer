@@ -201,7 +201,7 @@ so the TV needs LG's **developer mode**. This takes about 30 minutes once.
    – or, recommended, the **TV Streamer build of Moonlight**:
    [**moonlight-tvs_arm.ipk** (latest)](https://github.com/SebastianEitzert/TV-Streamer/releases/latest/download/moonlight-tvs_arm.ipk)
    – attached to every [release](https://github.com/SebastianEitzert/TV-Streamer/releases) ([what it changes](moonlight/README.md)): it passes the blue, green and
-   play/pause keys to the dashboard and brings the pointer back right after the arrow keys. Each key also shows up in
+   play/pause keys to the dashboard. Each key also shows up in
    Home Assistant as the event entity `event.tv_streamer_<streamer>_remote` (event types `blue`, `green`,
    `play`, `pause`, `stop`) – usable as a trigger in automations – and on the page itself as the event
    `tv-streamer-key` (e.g. for the floor plan card [Floorplan Lite](https://github.com/SebastianEitzert/HA-FloorplanLite):
@@ -279,6 +279,10 @@ For the TV:
 - Back on the remote leads from a building back to the property.
 - Location on the phone (geofence and Bluetooth rooms with **Bermuda**): see the Floorplan Lite README, section
   „Location with Bermuda“.
+
+> **Magic Remote and arrow keys:** after an arrow key the pointer pauses for about 1–1.7 s. Measured on an LG TV: the
+> remote itself sends no motion during that time – neither to webOS' pointer nor to its sensor service – so neither
+> Moonlight nor the streamer can bridge it. Use the wheel and the colour keys where you want to keep pointing.
 
 ## Troubleshooting
 

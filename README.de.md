@@ -204,7 +204,7 @@ der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 3
    – oder, empfohlen, die **TV-Streamer-Fassung von Moonlight**:
    [**moonlight-tvs_arm.ipk** (neueste)](https://github.com/SebastianEitzert/TV-Streamer/releases/latest/download/moonlight-tvs_arm.ipk)
    – hängt an jedem [Release](https://github.com/SebastianEitzert/TV-Streamer/releases) ([was sie ändert](moonlight/README.md)): Sie gibt Blau, Grün und
-   Wiedergabe/Pause an das Dashboard weiter und zeigt den Zeiger nach den Pfeiltasten sofort wieder. Jede Taste erscheint
+   Wiedergabe/Pause an das Dashboard weiter. Jede Taste erscheint
    außerdem in Home Assistant als Ereignis-Entität `event.tv_streamer_<streamer>_fernbedienung` (Ereignistypen `blue`,
    `green`, `play`, `pause`, `stop`) – nutzbar als Auslöser in Automationen – und auf der Seite selbst als Ereignis
    `tv-streamer-key` (z. B. für die Grundriss-Karte [Floorplan Lite](https://github.com/SebastianEitzert/HA-FloorplanLite):
@@ -286,6 +286,10 @@ Raum steuern ihn. Für den Fernseher:
 - Zurück auf der Fernbedienung führt vom Gebäude zurück aufs Grundstück.
 - Standort auf dem Handy (Geofence und Bluetooth-Räume mit **Bermuda**): siehe README von Floorplan Lite,
   Abschnitt „Standort mit Bermuda“.
+
+> **Magic Remote und Pfeiltasten:** Nach einer Pfeiltaste pausiert der Zeiger etwa 1–1,7 s. Gemessen an einem LG-TV:
+> Die Fernbedienung selbst sendet in dieser Zeit keine Bewegung – weder an den webOS-Zeiger noch an ihren Sensordienst –,
+> deshalb kann weder Moonlight noch der Streamer das überbrücken. Wo du weiter zeigen willst: Mausrad und Farbtasten nutzen.
 
 ## Fehlersuche
 

@@ -1,21 +1,3 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index e3d0a87..31264f7 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -294,6 +294,13 @@ if (TARGET_WEBOS)
-             ${WEBOSI18N_INCLUDE_DIRS})
-     target_link_libraries(moonlight-lib PUBLIC ${PBNJSON_C_LIBRARIES} ${PMLOG_LIBRARIES} ${WEBOSI18N_LIBRARIES})
-     target_link_libraries(moonlight-lib PUBLIC commons-luna-sync)
-+    # TV Streamer: the Magic Remote's sensor service (keyboard_webos.c) needs libhelpers' asynchronous Luna calls
-+    pkg_check_modules(TVS_HELPERS helpers)
-+    if (TVS_HELPERS_FOUND)
-+        target_include_directories(moonlight-lib SYSTEM PRIVATE ${TVS_HELPERS_INCLUDE_DIRS})
-+        target_link_libraries(moonlight-lib PUBLIC ${TVS_HELPERS_LIBRARIES})
-+        target_compile_definitions(moonlight-lib PRIVATE TVS_HAVE_HELPERS=1)
-+    endif ()
- else ()
-     if (TARGET_STEAMLINK)
-         set(FEATURE_FORCE_FULLSCREEN ON)
 diff --git a/deploy/webos/appinfo.json b/deploy/webos/appinfo.json
 index c636f42..3183fc6 100644
 --- a/deploy/webos/appinfo.json
@@ -29,26 +11,6 @@ index c636f42..3183fc6 100644
      "icon": "icon.png",
      "iconColor": "#ffffff",
      "largeIcon": "icon_large.png",
-diff --git a/src/app/app.c b/src/app/app.c
-index ab784f3..9e5c66f 100644
---- a/src/app/app.c
-+++ b/src/app/app.c
-@@ -127,8 +127,15 @@ void app_deinit(app_t *app) {
-     commons_logging_deinit();
- }
- 
-+#if TARGET_WEBOS
-+void stream_input_webos_pointer_tick(void);
-+#endif
-+
- void app_run_loop(app_t *app) {
-     app_process_events(app);
-+#if TARGET_WEBOS
-+    stream_input_webos_pointer_tick();  /* TV Streamer: pointer back after the arrow keys (keyboard_webos.c) */
-+#endif
-     lv_task_handler();
-     SDL_Delay(1);
- }
 diff --git a/src/app/lvgl/input/lv_drv_sdl_key.c b/src/app/lvgl/input/lv_drv_sdl_key.c
 index 4039940..ea9354c 100644
 --- a/src/app/lvgl/input/lv_drv_sdl_key.c
@@ -78,10 +40,10 @@ index 4039940..ea9354c 100644
  #endif
          if (app->session != NULL && session_handle_input_event(app->session, &e)) {
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
-index 652545b..0200ac3 100644
+index 652545b..ee7b167 100644
 --- a/src/app/platform/webos/keyboard_webos.c
 +++ b/src/app/platform/webos/keyboard_webos.c
-@@ -16,6 +16,126 @@
+@@ -16,6 +16,18 @@
  #include "app_webos.h"
  
  #define TV_REMOTE_TOGGLE_SOFT_INPUT 0
@@ -90,125 +52,17 @@ index 652545b..0200ac3 100644
 +#endif
 +
 +#if TV_STREAMER_REMOTE_KEYS
-+/* TV Streamer: webOS hides the Magic Remote pointer on every arrow key (5-way mode) and only shows it again once the
-+ * remote has been moved far enough – until then no pointer motion arrives and the host's mouse seems frozen. While
-+ * streaming, ask for the pointer right away and a few more times shortly after (webOS may hide it a little later). */
-+static Uint32 tvs_show_at[4];
-+
++/* TV Streamer: webOS hides the Magic Remote pointer on every arrow key (5-way mode). While streaming, ask for it back
++ * right away. (Measured 27.10.2026: the Magic Remote itself sends no motion for 1–1.7 s after a key – neither to webOS'
++ * pointer nor to its sensor service – so the pointer still pauses that long; nothing more can be done on the TV.) */
 +static void tvs_pointer_back(void) {
-+    static const Uint32 after_ms[4] = {30, 100, 200, 350};
-+    Uint32 now = SDL_GetTicks();
 +    SDL_webOSCursorVisibility(SDL_TRUE);
-+    for (int i = 0; i < 4; i++) {
-+        tvs_show_at[i] = now + after_ms[i];
-+    }
-+}
-+
-+/* Measurement for the TV Streamer: marker keys the streamer page sees but ignores – F18 = webOS hid the pointer,
-+ * F19 = webOS shows it again, F20 = first pointer motion after an arrow key. The streamer measures the times between
-+ * them and the arrow key and reports them to Home Assistant. */
-+static bool tvs_wait_motion = false;
-+
-+static void tvs_marker(short vk) {
-+    LiSendKeyboardEvent(0x8000 | vk, KEY_ACTION_DOWN, 0);
-+    LiSendKeyboardEvent(0x8000 | vk, KEY_ACTION_UP, 0);
-+}
-+
-+/* Pointer from the Magic Remote's own service (TV Streamer, test): after an arrow key webOS sends no pointer motion
-+ * for up to three seconds. The remote service (com.webos.service.mrcu) may keep reporting where the remote points;
-+ * while no real motion has come since the arrow key, its changes move the host's mouse. Markers for the measurement:
-+ * F21 = sensor data came after the arrow key, F22 = the service could not be called, F23 = it refused. */
-+static volatile Uint32 tvs_freeze_until = 0;   /* sensor moves the mouse until then (or until real motion) */
-+static volatile bool tvs_sensor_mark = false;  /* send F21 with the next sensor data */
-+
-+#if TVS_HAVE_HELPERS
-+#include <libhelpers.h>
-+#include <stdlib.h>
-+#include <string.h>
-+
-+static bool tvs_sensor_started = false, tvs_sensor_refused = false;
-+static bool tvs_have_last = false;
-+static int tvs_last_x = 0, tvs_last_y = 0;
-+
-+static bool tvs_num(const char *s, const char *key, int *out) {
-+    const char *p = strstr(s, key);
-+    if (!p) return false;
-+    p += strlen(key);
-+    while (*p == ' ' || *p == ':' || *p == '"') p++;
-+    char *end = NULL;
-+    double v = strtod(p, &end);
-+    if (end == p) return false;
-+    *out = (int) v;
-+    return true;
-+}
-+
-+static bool tvs_sensor_cb(LSHandle *sh, LSMessage *reply, void *ctx) {
-+    (void) sh; (void) ctx;
-+    const char *msg = HLunaServiceMessage(reply);
-+    if (!msg) return true;
-+    if (strstr(msg, "\"returnValue\":false") || strstr(msg, "\"returnValue\": false")) {
-+        if (!tvs_sensor_refused) { tvs_sensor_refused = true; tvs_marker(VK_F23); }
-+        return true;
-+    }
-+    const char *c = strstr(msg, "\"coordinate\"");
-+    int x, y;
-+    if (!c || !tvs_num(c, "\"x\"", &x) || !tvs_num(c, "\"y\"", &y)) return true;
-+    if (tvs_sensor_mark) { tvs_sensor_mark = false; tvs_marker(VK_F21); }
-+    if (tvs_have_last && tvs_freeze_until && !SDL_TICKS_PASSED(SDL_GetTicks(), tvs_freeze_until)) {
-+        int dx = x - tvs_last_x, dy = y - tvs_last_y;
-+        if ((dx || dy) && dx > -400 && dx < 400 && dy > -400 && dy < 400) LiSendMouseMoveEvent((short) dx, (short) dy);
-+    }
-+    tvs_last_x = x; tvs_last_y = y; tvs_have_last = true;
-+    return true;
-+}
-+
-+/* sleep:false – the remote shall keep reporting its position (test 27.10.: with sleep:true the data paused for as long
-+ * as webOS' own pointer motion, 1.0–1.7 s after an arrow key) */
-+static void tvs_sensor_start(void) {
-+    if (tvs_sensor_started) return;
-+    tvs_sensor_started = true;
-+    static union { HContext ctx; unsigned char placeholder[128]; } context;
-+    memset(&context, 0, sizeof(context));
-+    context.ctx.multiple = 1;
-+    context.ctx.pub = 1;
-+    context.ctx.callback = tvs_sensor_cb;
-+    if (HLunaServiceCall("luna://com.webos.service.mrcu/sensor/getSensorData",
-+                         "{\"callbackInterval\":1,\"subscribe\":true,\"sleep\":false,\"autoAlign\":false}",
-+                         &context.ctx) != 0) {
-+        tvs_marker(VK_F22);
-+    }
-+}
-+#else
-+static void tvs_sensor_start(void) {
-+    static bool told = false;
-+    if (!told) { told = true; tvs_marker(VK_F22); }  /* built without libhelpers: no sensor */
-+}
-+#endif
-+
-+/* Called for every pointer motion while streaming (session_mouse.c). */
-+void stream_input_webos_motion_seen(void) {
-+    tvs_freeze_until = 0;  /* real motion again: the sensor stops moving the mouse */
-+    if (tvs_wait_motion) {
-+        tvs_wait_motion = false;
-+        tvs_marker(VK_F20);
-+    }
-+}
-+
-+/* Called from the main loop: the delayed requests of tvs_pointer_back(). */
-+void stream_input_webos_pointer_tick(void) {
-+    Uint32 now = SDL_GetTicks();
-+    for (int i = 0; i < 4; i++) {
-+        if (tvs_show_at[i] != 0 && SDL_TICKS_PASSED(now, tvs_show_at[i])) {
-+            tvs_show_at[i] = 0;
-+            SDL_webOSCursorVisibility(SDL_TRUE);
-+        }
-+    }
 +}
 +#endif
  
  bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_KeyboardEvent *event, short *keyCode) {
      session_t *session = input->session;
-@@ -46,7 +166,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -46,7 +58,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
              if (input->view_only) {
                  return true;
              }
@@ -224,7 +78,7 @@ index 652545b..0200ac3 100644
                  LiSendMouseButtonEvent(event->type == SDL_KEYDOWN ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE,
                                         BUTTON_RIGHT);
                  return true;
-@@ -57,6 +185,62 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -57,6 +77,53 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
          case SDL_SCANCODE_WEBOS_RED:
              bus_pushevent(USER_OPEN_OVERLAY, NULL, NULL);
              return true;
@@ -253,7 +107,6 @@ index 652545b..0200ac3 100644
 +        case SDL_SCANCODE_WEBOS_CURSOR_HIDE:
 +            /* TV Streamer: webOS reports hiding the pointer – while streaming, switch it straight back on. */
 +            if (event->state == SDL_PRESSED) {
-+                tvs_marker(VK_F18);
 +                tvs_pointer_back();
 +            }
 +            return true;
@@ -261,21 +114,13 @@ index 652545b..0200ac3 100644
 +        case SDL_SCANCODE_DOWN:
 +        case SDL_SCANCODE_LEFT:
 +        case SDL_SCANCODE_RIGHT:
-+            /* TV Streamer: the arrow key still goes to the host; the pointer is asked back at once and shortly after */
++            /* TV Streamer: the arrow key still goes to the host; the pointer is asked back at once */
 +            if (event->state == SDL_PRESSED) {
-+                tvs_wait_motion = true;
 +                tvs_pointer_back();
-+                tvs_sensor_start();
-+                tvs_sensor_mark = true;
-+                tvs_freeze_until = SDL_GetTicks() + 3000;
-+                if (!tvs_freeze_until) tvs_freeze_until = 1;
 +            }
 +            return false;
 +        case SDL_SCANCODE_WEBOS_CURSOR_SHOW:
-+            if (event->state == SDL_PRESSED) {
-+                tvs_marker(VK_F19);
-+            }
-+            return true;
++            return true;  /* webOS' own pointer event – nothing for the host */
 +        case SDL_SCANCODE_PAUSE:
 +            /* Pause = F17. Sent here directly: the generic mapping later in stream_input_handle_key would turn
 +             * SDL_SCANCODE_PAUSE into VK_PAUSE again, which Sunshine on Linux does not know. */
@@ -287,25 +132,3 @@ index 652545b..0200ac3 100644
  #if TV_REMOTE_TOGGLE_SOFT_INPUT
              case SDL_SCANCODE_WEBOS_BLUE:
                  if (absinput_no_control) return true;
-diff --git a/src/app/stream/input/session_mouse.c b/src/app/stream/input/session_mouse.c
-index 6f3114e..81a97cc 100644
---- a/src/app/stream/input/session_mouse.c
-+++ b/src/app/stream/input/session_mouse.c
-@@ -59,10 +59,17 @@ void stream_input_handle_mwheel(stream_input_t *input, const SDL_MouseWheelEvent
-     }
- }
- 
-+#if TARGET_WEBOS
-+void stream_input_webos_motion_seen(void);  /* TV Streamer measurement (platform/webos/keyboard_webos.c) */
-+#endif
-+
- void stream_input_handle_mmotion(stream_input_t *input, const SDL_MouseMotionEvent *event, bool hw_mouse) {
-     if (input->view_only) {
-         return;
-     }
-+#if TARGET_WEBOS
-+    stream_input_webos_motion_seen();
-+#endif
-     if (event->which == SDL_TOUCH_MOUSEID && LiGetHostFeatureFlags() & LI_FF_PEN_TOUCH_EVENTS) {
-         // Don't send mouse events from touch devices if the host supports pen/touch events
-         return;
