@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/tv_streamer/manifest.json`.
 
 ## 0.4.8 – 2026-10-27
+- Moonlight (test): after an arrow key the patched Moonlight reads where the Magic Remote points straight from webOS' remote service (`com.webos.service.mrcu`) and moves the host's mouse with it until real pointer motion comes back – webOS itself sends none for up to 3 s. New measurement markers F21 (sensor data came), F22 (service not callable), F23 (refused) in `pointer_measurement` (`sensor`, `sensor_fehler`, `sensor_abgelehnt`).
 - Back key on the TV: the address of a Floorplan Lite card view (`#plan=…&floor=…`) is no pop-up any more – Back from a building leads to the site instead of jumping out of the dashboard (white page).
 
 ## 0.4.7 – 2026-10-27

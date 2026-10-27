@@ -223,7 +223,7 @@ CFG = dict(
     go2rtc_dir=env("GO2RTC_DIR", "/tmp"),
     go2rtc_rtsp=int(env("GO2RTC_RTSP_PORT", "8554")),   # nur intern (127.0.0.1): ffmpeg → go2rtc
 )
-FASSUNG = "2026-10-27.46"
+FASSUNG = "2026-10-27.47"
 try:    # Prüfsumme dieser Datei – in den Meldungen; zeigt nach dem Einspielen, ob sie unverändert angekommen ist
     with open(os.path.abspath(__file__), "rb") as _fh:
         QUELLE = "%08x" % (zlib.crc32(_fh.read()) & 0xffffffff)
@@ -421,7 +421,7 @@ log.addHandler(RECENT)
 
 # .44: Messungen „Zeiger nach Pfeiltaste“ (aus der Seite, Marken vom angepassten Moonlight) – gehen mit dem Status an HA
 ZEIGER = collections.deque(maxlen=20)
-ZEIGER_FELDER = ("k", "vorher", "hide", "show", "tv_bew", "host_bew", "los")
+ZEIGER_FELDER = ("k", "vorher", "hide", "show", "tv_bew", "host_bew", "los", "sensor", "sensor_fehler", "sensor_abgelehnt")
 
 CHILDREN = set()      # alle gestarteten Programme – werden beim Beenden mit beendet
 RUNNING = {}          # laufendes Programm je Name (supervise) – z. B. um go2rtc mit neuer Einstellung neu zu starten
@@ -518,7 +518,7 @@ async def wait_for_x():
 
 
 def _tasten_belegen():
-    """Läuft im Executor: F13–F20 per XChangeKeyboardMapping auf die Tastencodes 191–198 legen (libX11 über ctypes)."""
+    """Läuft im Executor: F13–F23 per XChangeKeyboardMapping auf die Tastencodes 191–201 legen (libX11 über ctypes)."""
     import ctypes
     import ctypes.util
     x = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11") or "libX11.so.6")
@@ -529,8 +529,8 @@ def _tasten_belegen():
         raise OSError("Bildschirm %s nicht erreichbar" % CFG["display"])
     d = ctypes.c_void_p(d)
     try:
-        syms = (ctypes.c_ulong * 8)(*[x.XStringToKeysym(b"F%d" % n) for n in range(13, 21)])
-        x.XChangeKeyboardMapping(d, 191, 1, syms, 8)
+        syms = (ctypes.c_ulong * 11)(*[x.XStringToKeysym(b"F%d" % n) for n in range(13, 24)])   # .47: bis F23
+        x.XChangeKeyboardMapping(d, 191, 1, syms, 11)
         x.XSync(d, 0)
         if x.XKeysymToKeycode(d, ctypes.c_ulong(syms[0])) != 191:
             raise OSError("Belegung nicht übernommen")
@@ -547,12 +547,12 @@ async def tasten_belegen():
     for _ in range(20):
         try:
             await asyncio.get_running_loop().run_in_executor(None, _tasten_belegen)
-            log.info("Tasten F13–F20 belegt (Farb- und Medientasten, Messmarken aus Moonlight)")
+            log.info("Tasten F13–F23 belegt (Farb- und Medientasten, Messmarken aus Moonlight)")
             return
         except Exception as e:
             fehler = e
             await asyncio.sleep(0.5)
-    log.warning("Tasten F13–F20 nicht belegt: %s", fehler)
+    log.warning("Tasten F13–F23 nicht belegt: %s", fehler)
 
 
 # ---------------------------------------------------------------- Chromium fernsteuern (CDP)
@@ -786,7 +786,8 @@ MOONLIGHT_JS = r"""(() => {
   window.addEventListener('mousemove', () => { Z.bew = performance.now(); if (Z.r) { zMarke('host_bew'); } }, true);
   window.addEventListener('keyup', (e) => { if (Z.r && /^Arrow/.test(e.key)) { zMarke('los'); } }, true);
   window.addEventListener('keydown', (e) => {
-    const marke = { F18: 'hide', F19: 'show', F20: 'tv_bew' }[e.code];
+    /* .47: F21 = Lagedaten der Magic Remote kamen nach der Pfeiltaste, F22 = Dienst nicht aufrufbar, F23 = abgelehnt */
+    const marke = { F18: 'hide', F19: 'show', F20: 'tv_bew', F21: 'sensor', F22: 'sensor_fehler', F23: 'sensor_abgelehnt' }[e.code];
     if (marke) { e.preventDefault(); e.stopImmediatePropagation(); zMarke(marke); return; }
     if (/^Arrow/.test(e.key) && !e.repeat) { zStart(e.key); }
   }, true);

@@ -1,3 +1,21 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e3d0a87..31264f7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -294,6 +294,13 @@ if (TARGET_WEBOS)
+             ${WEBOSI18N_INCLUDE_DIRS})
+     target_link_libraries(moonlight-lib PUBLIC ${PBNJSON_C_LIBRARIES} ${PMLOG_LIBRARIES} ${WEBOSI18N_LIBRARIES})
+     target_link_libraries(moonlight-lib PUBLIC commons-luna-sync)
++    # TV Streamer: the Magic Remote's sensor service (keyboard_webos.c) needs libhelpers' asynchronous Luna calls
++    pkg_check_modules(TVS_HELPERS helpers)
++    if (TVS_HELPERS_FOUND)
++        target_include_directories(moonlight-lib SYSTEM PRIVATE ${TVS_HELPERS_INCLUDE_DIRS})
++        target_link_libraries(moonlight-lib PUBLIC ${TVS_HELPERS_LIBRARIES})
++        target_compile_definitions(moonlight-lib PRIVATE TVS_HAVE_HELPERS=1)
++    endif ()
+ else ()
+     if (TARGET_STEAMLINK)
+         set(FEATURE_FORCE_FULLSCREEN ON)
 diff --git a/deploy/webos/appinfo.json b/deploy/webos/appinfo.json
 index c636f42..3183fc6 100644
 --- a/deploy/webos/appinfo.json
@@ -60,10 +78,10 @@ index 4039940..ea9354c 100644
  #endif
          if (app->session != NULL && session_handle_input_event(app->session, &e)) {
 diff --git a/src/app/platform/webos/keyboard_webos.c b/src/app/platform/webos/keyboard_webos.c
-index 652545b..b738b5c 100644
+index 652545b..ee5ae28 100644
 --- a/src/app/platform/webos/keyboard_webos.c
 +++ b/src/app/platform/webos/keyboard_webos.c
-@@ -16,6 +16,54 @@
+@@ -16,6 +16,124 @@
  #include "app_webos.h"
  
  #define TV_REMOTE_TOGGLE_SOFT_INPUT 0
@@ -96,8 +114,78 @@ index 652545b..b738b5c 100644
 +    LiSendKeyboardEvent(0x8000 | vk, KEY_ACTION_UP, 0);
 +}
 +
++/* Pointer from the Magic Remote's own service (TV Streamer, test): after an arrow key webOS sends no pointer motion
++ * for up to three seconds. The remote service (com.webos.service.mrcu) may keep reporting where the remote points;
++ * while no real motion has come since the arrow key, its changes move the host's mouse. Markers for the measurement:
++ * F21 = sensor data came after the arrow key, F22 = the service could not be called, F23 = it refused. */
++static volatile Uint32 tvs_freeze_until = 0;   /* sensor moves the mouse until then (or until real motion) */
++static volatile bool tvs_sensor_mark = false;  /* send F21 with the next sensor data */
++
++#if TVS_HAVE_HELPERS
++#include <libhelpers.h>
++#include <stdlib.h>
++#include <string.h>
++
++static bool tvs_sensor_started = false, tvs_sensor_refused = false;
++static bool tvs_have_last = false;
++static int tvs_last_x = 0, tvs_last_y = 0;
++
++static bool tvs_num(const char *s, const char *key, int *out) {
++    const char *p = strstr(s, key);
++    if (!p) return false;
++    p += strlen(key);
++    while (*p == ' ' || *p == ':' || *p == '"') p++;
++    char *end = NULL;
++    double v = strtod(p, &end);
++    if (end == p) return false;
++    *out = (int) v;
++    return true;
++}
++
++static bool tvs_sensor_cb(LSHandle *sh, LSMessage *reply, void *ctx) {
++    (void) sh; (void) ctx;
++    const char *msg = HLunaServiceMessage(reply);
++    if (!msg) return true;
++    if (strstr(msg, "\"returnValue\":false") || strstr(msg, "\"returnValue\": false")) {
++        if (!tvs_sensor_refused) { tvs_sensor_refused = true; tvs_marker(VK_F23); }
++        return true;
++    }
++    const char *c = strstr(msg, "\"coordinate\"");
++    int x, y;
++    if (!c || !tvs_num(c, "\"x\"", &x) || !tvs_num(c, "\"y\"", &y)) return true;
++    if (tvs_sensor_mark) { tvs_sensor_mark = false; tvs_marker(VK_F21); }
++    if (tvs_have_last && tvs_freeze_until && !SDL_TICKS_PASSED(SDL_GetTicks(), tvs_freeze_until)) {
++        int dx = x - tvs_last_x, dy = y - tvs_last_y;
++        if ((dx || dy) && dx > -400 && dx < 400 && dy > -400 && dy < 400) LiSendMouseMoveEvent((short) dx, (short) dy);
++    }
++    tvs_last_x = x; tvs_last_y = y; tvs_have_last = true;
++    return true;
++}
++
++static void tvs_sensor_start(void) {
++    if (tvs_sensor_started) return;
++    tvs_sensor_started = true;
++    static union { HContext ctx; unsigned char placeholder[128]; } context;
++    memset(&context, 0, sizeof(context));
++    context.ctx.multiple = 1;
++    context.ctx.pub = 1;
++    context.ctx.callback = tvs_sensor_cb;
++    if (HLunaServiceCall("luna://com.webos.service.mrcu/sensor/getSensorData",
++                         "{\"callbackInterval\":1,\"subscribe\":true,\"sleep\":true,\"autoAlign\":false}",
++                         &context.ctx) != 0) {
++        tvs_marker(VK_F22);
++    }
++}
++#else
++static void tvs_sensor_start(void) {
++    static bool told = false;
++    if (!told) { told = true; tvs_marker(VK_F22); }  /* built without libhelpers: no sensor */
++}
++#endif
++
 +/* Called for every pointer motion while streaming (session_mouse.c). */
 +void stream_input_webos_motion_seen(void) {
++    tvs_freeze_until = 0;  /* real motion again: the sensor stops moving the mouse */
 +    if (tvs_wait_motion) {
 +        tvs_wait_motion = false;
 +        tvs_marker(VK_F20);
@@ -118,7 +206,7 @@ index 652545b..b738b5c 100644
  
  bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_KeyboardEvent *event, short *keyCode) {
      session_t *session = input->session;
-@@ -46,7 +94,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -46,7 +164,15 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
              if (input->view_only) {
                  return true;
              }
@@ -134,7 +222,7 @@ index 652545b..b738b5c 100644
                  LiSendMouseButtonEvent(event->type == SDL_KEYDOWN ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE,
                                         BUTTON_RIGHT);
                  return true;
-@@ -57,6 +113,58 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
+@@ -57,6 +183,62 @@ bool stream_input_webos_intercept_remote_keys(stream_input_t *input, const SDL_K
          case SDL_SCANCODE_WEBOS_RED:
              bus_pushevent(USER_OPEN_OVERLAY, NULL, NULL);
              return true;
@@ -175,6 +263,10 @@ index 652545b..b738b5c 100644
 +            if (event->state == SDL_PRESSED) {
 +                tvs_wait_motion = true;
 +                tvs_pointer_back();
++                tvs_sensor_start();
++                tvs_sensor_mark = true;
++                tvs_freeze_until = SDL_GetTicks() + 3000;
++                if (!tvs_freeze_until) tvs_freeze_until = 1;
 +            }
 +            return false;
 +        case SDL_SCANCODE_WEBOS_CURSOR_SHOW:

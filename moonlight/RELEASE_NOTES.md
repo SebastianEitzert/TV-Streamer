@@ -13,6 +13,8 @@ Changes against upstream:
   host's mouse froze for a moment. While streaming this build leaves it on, and after every arrow key (and whenever
   webOS reports hiding it) asks for it again at once and after 30, 100, 200 and 350 ms.
 - **Pause** is sent as F17 (TV Streamer event `pause`), **Play** as F15 (event `play`).
+- **Test:** after an arrow key the pointer is taken from webOS' Magic Remote service (`com.webos.service.mrcu`) until
+  webOS sends pointer motion again – the TV Streamer measures whether that service delivers (markers F21–F23).
 
 Install over the official Moonlight with the webOS Dev Manager (same app id – pairings and settings stay), then switch the
 TV off at the mains once so no old Moonlight keeps running in the background.
