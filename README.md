@@ -198,7 +198,9 @@ so the TV needs LG's **developer mode**. This takes about 30 minutes once.
 #### 9.3 Install Moonlight
 1. Download the latest `com.limelight.webos_<version>_arm.ipk` from the
    [Moonlight TV releases](https://github.com/mariotaku/moonlight-tv/releases)
-   – or, recommended, the [TV Streamer build of Moonlight](moonlight/README.md): it passes the blue, green and
+   – or, recommended, the **TV Streamer build of Moonlight**:
+   [**moonlight-tvs_arm.ipk** (latest)](https://github.com/SebastianEitzert/TV-Streamer/releases/latest/download/moonlight-tvs_arm.ipk)
+   – attached to every [release](https://github.com/SebastianEitzert/TV-Streamer/releases) ([what it changes](moonlight/README.md)): it passes the blue, green and
    play/pause keys to the dashboard and brings the pointer back right after the arrow keys. Each key also shows up in
    Home Assistant as the event entity `event.tv_streamer_<streamer>_remote` (event types `blue`, `green`,
    `play`, `pause`, `stop`) – usable as a trigger in automations – and on the page itself as the event

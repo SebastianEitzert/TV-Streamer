@@ -201,7 +201,9 @@ der Fernseher braucht dafür LGs **Entwicklermodus**. Das dauert einmalig etwa 3
 #### 9.3 Moonlight installieren
 1. Die neueste `com.limelight.webos_<Fassung>_arm.ipk` von den
    [Moonlight-TV-Releases](https://github.com/mariotaku/moonlight-tv/releases) herunterladen
-   – oder, empfohlen, die [TV-Streamer-Fassung von Moonlight](moonlight/README.md): Sie gibt Blau, Grün und
+   – oder, empfohlen, die **TV-Streamer-Fassung von Moonlight**:
+   [**moonlight-tvs_arm.ipk** (neueste)](https://github.com/SebastianEitzert/TV-Streamer/releases/latest/download/moonlight-tvs_arm.ipk)
+   – hängt an jedem [Release](https://github.com/SebastianEitzert/TV-Streamer/releases) ([was sie ändert](moonlight/README.md)): Sie gibt Blau, Grün und
    Wiedergabe/Pause an das Dashboard weiter und zeigt den Zeiger nach den Pfeiltasten sofort wieder. Jede Taste erscheint
    außerdem in Home Assistant als Ereignis-Entität `event.tv_streamer_<streamer>_fernbedienung` (Ereignistypen `blue`,
    `green`, `play`, `pause`, `stop`) – nutzbar als Auslöser in Automationen – und auf der Seite selbst als Ereignis

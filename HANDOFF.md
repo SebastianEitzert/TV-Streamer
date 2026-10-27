@@ -42,7 +42,7 @@ tests/                          pytest
 
 - **Kein Bundling.** Prüfung: `python3 -c "import ast; ast.parse(open('…/server.py').read())"`, Tests `pytest -q` (Action `validate.yml`).
 - **Release:** Version in `manifest.json` erhöhen, `CHANGELOG.md` `## <version> – <Datum>`, auf `main` pushen → `release.yml` erstellt Tag, Release und `tv_streamer.zip`. Bei geänderten Streamer-Dateien `FASSUNG` in `server.py` hochzählen.
-- **Moonlight-IPK:** Jeder Push auf `main` startet `moonlight-webos.yml`: klont moonlight-tv (Tag aus `moonlight/UPSTREAM`), wendet `moonlight/patches/*.patch` mit `git apply` an, baut mit dem webOS-NDK/Homebrew-Toolchain und legt das IPK als Artefakt `moonlight-webos-tvstreamer` ab. Installation mit dem webOS Dev Manager über die offizielle App (gleiche App-ID), danach TV einmal vom Netz trennen.
+- **Moonlight-IPK:** Jeder Push auf `main` startet `moonlight-webos.yml`; das IPK hängt danach am Release der aktuellen Version, auch als `moonlight-tvs_arm.ipk` (Link für Nutzer: https://github.com/SebastianEitzert/TV-Streamer/releases/latest/download/moonlight-tvs_arm.ipk). Ablauf: klont moonlight-tv (Tag aus `moonlight/UPSTREAM`), wendet `moonlight/patches/*.patch` mit `git apply` an, baut mit dem webOS-NDK/Homebrew-Toolchain und legt das IPK als Artefakt `moonlight-webos-tvstreamer` ab. Installation mit dem webOS Dev Manager über die offizielle App (gleiche App-ID), danach TV einmal vom Netz trennen.
 - **Commits:** Autor `SebastianEitzert <35038662+SebastianEitzert@users.noreply.github.com>`.
 
 ## 5. Verbindung Integration – Streamer-VM – HA
