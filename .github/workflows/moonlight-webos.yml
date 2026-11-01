@@ -30,7 +30,7 @@ jobs:
         run: for p in ../moonlight/patches/*.patch; do echo "applying $p"; git apply --verbose "$p"; done
 
       - name: Download ares-cli-rs
-        uses: robinraju/release-downloader@v1.12
+        uses: robinraju/release-downloader@v1.13
         with:
           repository: webosbrew/ares-cli-rs
           latest: true
@@ -38,7 +38,7 @@ jobs:
           out-file-path: temp
 
       - name: Download Homebrew toolbox
-        uses: robinraju/release-downloader@v1.12
+        uses: robinraju/release-downloader@v1.13
         with:
           repository: webosbrew/dev-toolbox-cli
           latest: true
@@ -49,7 +49,7 @@ jobs:
         run: sudo apt-get -yq update && sudo apt-get -y -qq install cmake ./temp/*.deb
 
       - name: Download webOS NDK
-        uses: robinraju/release-downloader@v1.12
+        uses: robinraju/release-downloader@v1.13
         with:
           repository: openlgtv/buildroot-nc4
           tag: webos-a38c582
