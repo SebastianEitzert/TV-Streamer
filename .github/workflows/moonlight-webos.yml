@@ -88,7 +88,7 @@ jobs:
       - name: Compatibility check
         run: webosbrew-ipk-verify -f markdown -d -o "$GITHUB_STEP_SUMMARY" upstream/dist/*.ipk
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: moonlight-webos-tvstreamer
           path: upstream/dist/*.ipk
